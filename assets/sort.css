@@ -1,0 +1,99 @@
+.content-hub__content .etch-hub-sort {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--e-text-color, #ddd);
+  font-size: var(--e-font-size-m, 14px);
+}
+.content-hub__content .etch-hub-sort-native { flex: 0 0 auto; }
+.etch-hub-sort-results { min-height: 0; overflow: auto; }
+.etch-hub-sort-bar, .etch-hub-sort-controls, .etch-hub-sort-paging {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.etch-hub-sort-bar { justify-content: space-between; flex-wrap: wrap; padding-right: 20px; }
+.etch-hub-sort-search, .etch-hub-sort-size {
+  border: 1px solid var(--e-border-color, #555);
+  border-radius: var(--e-border-radius, 5px);
+  background: var(--e-panel-background-color, #292929);
+  color: inherit;
+  font: inherit;
+  padding: 0.5rem;
+}
+.etch-hub-sort-search { min-width: 220px; }
+.etch-hub-sort-button {
+  border: 1px solid var(--e-border-color, #555);
+  border-radius: var(--e-border-radius, 5px);
+  background: var(--e-panel-background-color, #292929);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.45rem 0.7rem;
+}
+.etch-hub-sort-button:hover, .etch-hub-sort-button:focus-visible { border-color: currentColor; }
+.etch-hub-sort-button:focus-visible,
+.etch-hub-sort-search:focus-visible,
+.etch-hub-sort-size:focus-visible,
+.etch-hub-sort-settings-tab:focus-visible,
+.etch-hub-sort-settings-panel .etch-builder-switch__root:focus-visible {
+  outline: 2px solid #8fc9ff;
+  outline-offset: 2px;
+}
+.etch-hub-sort-button:disabled { opacity: 0.4; cursor: default; }
+.etch-hub-sort-action-buttons { display: flex; align-items: center; gap: 0.4rem; }
+.etch-hub-sort-open, .etch-hub-sort-trash {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  line-height: 1;
+}
+.etch-hub-sort-open { background: oklch(1 0 0 / 0.1); border-color: oklch(1 0 0 / 0.1); color: #f7f7f8; }
+.etch-hub-sort-trash { background: oklch(0.627966 0.257704 29.2346 / 0.4); border-color: oklch(0.627966 0.257704 29.2346 / 0.4); color: #f7f7f8; }
+.etch-hub-sort-trash:hover, .etch-hub-sort-trash:focus-visible { background: oklch(0.627966 0.257704 29.2346 / 0.55); }
+.etch-hub-sort-trash-icon { width: 14px; height: 14px; display: block; filter: invert(1); }
+.etch-hub-sort-message {
+  flex: 0 0 24ch;
+  min-width: 24ch;
+  color: var(--e-foreground-color-muted, #aaa);
+  white-space: nowrap;
+}
+.etch-hub-sort-results { margin-top: 0.5rem; }
+.etch-hub-sort-scroller { width: 100%; overflow: auto; }
+.etch-hub-sort-table { width: 100%; border-collapse: collapse; text-align: left; }
+.etch-hub-sort-table th, .etch-hub-sort-table td {
+  border-bottom: 1px solid var(--e-border-color-muted, #444);
+  padding: 0.65rem;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.etch-hub-sort-table th { position: sticky; top: 0; background: var(--e-panel-background-color, #292929); }
+.etch-hub-sort-heading { border: 0; padding: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.25rem; }
+.etch-hub-sort-icon { width: 16px; height: 16px; opacity: 0.8; filter: invert(1); }
+.etch-hub-sort-settings-icon { width: 16px; height: 16px; filter: invert(1); }
+.etch-hub-sort-settings-tab { text-transform: none !important; }
+.etch-settings-panel.etch-hub-sort-settings-active > .etch-settings-content:not(.etch-hub-sort-settings-panel),
+.etch-settings-panel.etch-hub-sort-settings-active > .etch-settings-buttons:not(.etch-hub-sort-settings-buttons) { display: none !important; }
+.etch-settings-panel.etch-hub-sort-settings-active > .etch-hub-sort-settings-panel { display: flex !important; }
+.etch-settings-panel.etch-hub-sort-settings-active > .etch-hub-sort-settings-buttons { display: flex !important; }
+.etch-hub-sort-settings-panel { background: var(--etch-neutral-dark, #303034); }
+.etch-hub-sort-settings-panel .etch-hub-sort-setting { width: 100%; }
+.etch-hub-sort-setting-status { display: block; min-height: 1em; color: var(--e-foreground-color-muted, #aaa); }
+.etch-hub-sort-status { border-radius: 3px; padding: 0.2rem 0.4rem; text-transform: capitalize; }
+.etch-hub-sort-status-publish { background: var(--e-success-dark, #244332); color: var(--e-success, #5ccc86); }
+.etch-hub-sort-status-draft { background: var(--e-warning-dark, #4a3c24); color: var(--e-warning, #e9b74d); }
+.etch-hub-sort-paging { justify-content: flex-end; padding: 0.6rem 0; }
+.etch-hub-sort-empty { text-align: center; }
+.content-hub__content .datagrid-wrapper[hidden],
+.content-hub__content .etch-hub-sort-results[hidden],
+.content-hub__content .etch-hub-sort-controls[hidden] { display: none !important; }

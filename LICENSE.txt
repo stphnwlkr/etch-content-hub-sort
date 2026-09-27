@@ -1,0 +1,11 @@
+Etch Content Hub Sort
+Copyright (C) 2026 Stephen Walker
+
+The original PHP, JavaScript, and CSS in this plugin are licensed under the
+GNU General Public License version 3 or later.
+
+You may obtain the full license text at:
+https://www.gnu.org/licenses/gpl-3.0.html
+
+The SVG sort and delete icons were supplied by the site owner. Their licensing
+must be confirmed separately before any public redistribution.
