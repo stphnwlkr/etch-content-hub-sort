@@ -37,6 +37,7 @@
 .etch-hub-sort-button:focus-visible,
 .etch-hub-sort-search:focus-visible,
 .etch-hub-sort-size:focus-visible,
+.etch-hub-sort-placement-select:focus-visible,
 .etch-hub-sort-settings-tab:focus-visible,
 .etch-hub-sort-settings-panel .etch-builder-switch__root:focus-visible {
   outline: 2px solid #8fc9ff;
@@ -78,16 +79,46 @@
   text-overflow: ellipsis;
 }
 .etch-hub-sort-table th { position: sticky; top: 0; background: var(--e-panel-background-color, #292929); }
+.etch-hub-sort-actions-cell { width: 88px; }
+.etch-hub-sort-actions-cell.etch-hub-sort-action-single { width: 70px; }
 .etch-hub-sort-heading { border: 0; padding: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.25rem; }
 .etch-hub-sort-icon { width: 16px; height: 16px; opacity: 0.8; filter: invert(1); }
-.etch-hub-sort-settings-icon { width: 16px; height: 16px; filter: invert(1); }
-.etch-hub-sort-settings-tab { text-transform: none !important; }
+.etch-hub-sort-settings-icon { width: 16px; height: 16px; flex: 0 0 16px; filter: invert(1); }
+.etch-hub-sort-settings-tab {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 0.75rem;
+  text-align: left;
+  text-transform: none !important;
+  white-space: nowrap;
+}
+.etch-hub-sort-settings-label { white-space: nowrap; }
 .etch-settings-panel.etch-hub-sort-settings-active > .etch-settings-content:not(.etch-hub-sort-settings-panel),
 .etch-settings-panel.etch-hub-sort-settings-active > .etch-settings-buttons:not(.etch-hub-sort-settings-buttons) { display: none !important; }
 .etch-settings-panel.etch-hub-sort-settings-active > .etch-hub-sort-settings-panel { display: flex !important; }
 .etch-settings-panel.etch-hub-sort-settings-active > .etch-hub-sort-settings-buttons { display: flex !important; }
-.etch-hub-sort-settings-panel { background: var(--etch-neutral-dark, #303034); }
-.etch-hub-sort-settings-panel .etch-hub-sort-setting { width: 100%; }
+.etch-hub-sort-settings-panel {
+  flex-direction: column;
+  align-items: stretch;
+  background: var(--etch-neutral-dark, #303034);
+}
+.etch-hub-sort-settings-panel .etch-hub-sort-setting {
+  width: 100%;
+  flex: 0 0 auto;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--e-border-color-muted, #444);
+}
+.etch-hub-sort-placement-select {
+  width: 175px;
+  max-width: 60%;
+  border: 1px solid var(--e-border-color, #555);
+  border-radius: var(--e-border-radius, 5px);
+  background: var(--e-panel-background-color, #292929);
+  color: inherit;
+  font: inherit;
+  padding: 0.4rem;
+}
 .etch-hub-sort-setting-status { display: block; min-height: 1em; color: var(--e-foreground-color-muted, #aaa); }
 .etch-hub-sort-status { border-radius: 3px; padding: 0.2rem 0.4rem; text-transform: capitalize; }
 .etch-hub-sort-status-publish { background: var(--e-success-dark, #244332); color: var(--e-success, #5ccc86); }

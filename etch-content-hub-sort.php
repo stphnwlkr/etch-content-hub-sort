@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Etch Content Hub Sort
  * Description: Adds search, full-result sorting, pagination, and trash actions to Etch's Content Hub.
- * Version: 1.0.0
+ * Version: 1.0.2
  * Requires at least: 5.9
  * Requires PHP: 8.1
  * Author: Stephen Walker
@@ -13,6 +13,15 @@
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
+}
+
+/** Return the saved layout, including the earlier start/end switch. */
+function etch_hub_sort_actions_layout(): string {
+	$layout = get_option( 'etch_hub_sort_actions_layout', '' );
+	if ( in_array( $layout, array( 'end', 'start', 'split' ), true ) ) {
+		return $layout;
+	}
+	return '1' === get_option( 'etch_hub_sort_actions_first', '0' ) ? 'start' : 'end';
 }
 
 add_action(
@@ -30,12 +39,33 @@ add_action(
 					return current_user_can( 'manage_options' );
 				},
 				'callback'            => static function ( WP_REST_Request $request ) {
-					$enabled = (bool) $request->get_param( 'enabled' );
-					update_option( 'etch_hub_sort_enabled', $enabled ? '1' : '0' );
-					return rest_ensure_response( array( 'enabled' => $enabled ) );
+					if ( ! $request->has_param( 'enabled' ) && ! $request->has_param( 'actions_first' ) && ! $request->has_param( 'actions_layout' ) ) {
+						return new WP_Error( 'etch_hub_sort_missing_setting', __( 'Choose a setting to update.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
+					}
+					if ( $request->has_param( 'enabled' ) ) {
+						update_option( 'etch_hub_sort_enabled', $request->get_param( 'enabled' ) ? '1' : '0' );
+					}
+					if ( $request->has_param( 'actions_first' ) ) {
+						update_option( 'etch_hub_sort_actions_first', $request->get_param( 'actions_first' ) ? '1' : '0' );
+						if ( ! $request->has_param( 'actions_layout' ) ) {
+							delete_option( 'etch_hub_sort_actions_layout' );
+						}
+					}
+					if ( $request->has_param( 'actions_layout' ) ) {
+						update_option( 'etch_hub_sort_actions_layout', $request->get_param( 'actions_layout' ) );
+					}
+					return rest_ensure_response(
+						array(
+							'enabled'       => '0' !== get_option( 'etch_hub_sort_enabled', '1' ),
+							'actions_first'  => 'start' === etch_hub_sort_actions_layout(),
+							'actions_layout' => etch_hub_sort_actions_layout(),
+						)
+					);
 				},
 				'args'                => array(
-					'enabled' => array( 'type' => 'boolean', 'required' => true ),
+					'enabled'       => array( 'type' => 'boolean' ),
+					'actions_first' => array( 'type' => 'boolean' ),
+					'actions_layout' => array( 'type' => 'string', 'enum' => array( 'end', 'start', 'split' ) ),
 				),
 			)
 		);
@@ -171,7 +201,7 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '1.0.0';
+		$version = '1.0.2';
 		$types   = array();
 		foreach ( get_post_types( array( 'show_in_rest' => true ), 'objects' ) as $post_type ) {
 			$types[ $post_type->labels->name ] = $post_type->name;
@@ -190,6 +220,7 @@ add_action(
 					'nonce'    => wp_create_nonce( 'wp_rest' ),
 					'types'    => $types,
 					'enabled'  => '0' !== get_option( 'etch_hub_sort_enabled', '1' ),
+					'actionsLayout' => etch_hub_sort_actions_layout(),
 					'canManage' => current_user_can( 'manage_options' ),
 				)
 			) . ';',

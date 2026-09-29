@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.0.0
+Stable tag: 1.0.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -12,7 +12,7 @@ Adds search, sorting, pagination, and WordPress Trash actions to the Etch Conten
 
 == Description ==
 
-This plugin adds a browse table to Etch's Content Hub. It searches and sorts across the full result set and offers 25, 50, or 100 items per page. An Etch table button opens the original Etch view for inline editing and new item creation. A separate Hub search and sort tab in Etch settings turns the feature on or off.
+This plugin adds a browse table to Etch's Content Hub. It searches and sorts across the full result set and offers 25, 50, or 100 items per page. An Etch table button opens the original Etch view for inline editing and new item creation. A separate Hub search and sort tab in Etch settings turns the feature on or off and offers three Actions layouts: both at the end (default), both at the start, or Open after Title and Trash at the end.
 
 Etch must be installed and active. The plugin uses Etch's current builder interface, so a future Etch update may require a compatibility update. Tested with Etch 1.6.7 and WordPress 7.1.2 on a local site.
 
@@ -35,6 +35,15 @@ The browse table reads WordPress content through its own paginated API. Etch's i
 The item moves to WordPress Trash after confirmation, subject to the user's delete permission. It can be restored through WordPress while it remains in Trash.
 
 == Changelog ==
+
+= 1.0.2 =
+
+* Add a split Actions layout with Open after Title and Trash last.
+* Stack settings vertically in the Hub search and sort panel.
+
+= 1.0.1 =
+
+* Add an Actions-column placement setting and improve the settings-tab label layout.
 
 = 1.0.0 =
 

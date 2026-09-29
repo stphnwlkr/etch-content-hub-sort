@@ -69,6 +69,14 @@
     const table = element('table', 'etch-hub-sort-table');
     const thead = element('thead');
     const headings = element('tr');
+    const splitActions = config.actionsLayout === 'split';
+    const actionsFirst = config.actionsLayout === 'start';
+    const actionHeading = (label, single = false) => {
+      const heading = element('th', `etch-hub-sort-actions-cell${single ? ' etch-hub-sort-action-single' : ''}`, label);
+      heading.scope = 'col';
+      return heading;
+    };
+    if (actionsFirst) headings.appendChild(actionHeading(__('Actions', 'etch-content-hub-sort')));
     for (const [key, label] of columns) {
       const th = element('th');
       th.scope = 'col';
@@ -91,10 +99,10 @@
       heading.appendChild(icon);
       th.appendChild(heading);
       headings.appendChild(th);
+      if (splitActions && key === 'title') headings.appendChild(actionHeading(__('Open', 'etch-content-hub-sort'), true));
     }
-    const actionsHeading = element('th', '', __('Actions', 'etch-content-hub-sort'));
-    actionsHeading.scope = 'col';
-    headings.appendChild(actionsHeading);
+    if (splitActions) headings.appendChild(actionHeading(__('Trash', 'etch-content-hub-sort'), true));
+    else if (!actionsFirst) headings.appendChild(actionHeading(__('Actions', 'etch-content-hub-sort')));
     thead.appendChild(headings);
     table.appendChild(thead);
 
@@ -110,8 +118,10 @@
         else { cell.textContent = value; cell.title = value; }
         row.appendChild(cell);
       }
-      const actions = element('td');
+      const actions = element('td', `etch-hub-sort-actions-cell${splitActions ? ' etch-hub-sort-action-single' : ''}`);
       const actionButtons = element('div', 'etch-hub-sort-action-buttons');
+      const trashActions = splitActions ? element('td', 'etch-hub-sort-actions-cell etch-hub-sort-action-single') : null;
+      const trashButtons = splitActions ? element('div', 'etch-hub-sort-action-buttons') : null;
       const open = button('↗', async () => {
         open.disabled = true;
         try {
@@ -156,16 +166,21 @@
         trash.appendChild(trashIcon);
         trash.setAttribute('aria-label', sprintf(__('Move %s to Trash', 'etch-content-hub-sort'), item.title || `#${item.id}`));
         trash.title = __('Move to WordPress Trash', 'etch-content-hub-sort');
-        actionButtons.appendChild(trash);
+        (trashButtons || actionButtons).appendChild(trash);
       }
       actions.appendChild(actionButtons);
-      row.appendChild(actions);
+      if (splitActions) {
+        trashActions.appendChild(trashButtons);
+        row.querySelector('.etch-hub-sort-cell-title').after(actions);
+        row.appendChild(trashActions);
+      } else if (actionsFirst) row.prepend(actions);
+      else row.appendChild(actions);
       tbody.appendChild(row);
     }
     if (!data.items.length) {
       const row = element('tr');
       const cell = element('td', 'etch-hub-sort-empty', __('No matching items.', 'etch-content-hub-sort'));
-      cell.colSpan = columns.length + 1;
+      cell.colSpan = columns.length + (splitActions ? 2 : 1);
       row.appendChild(cell);
       tbody.appendChild(row);
     }
@@ -180,6 +195,7 @@
     next.disabled = data.page >= data.pages;
     paging.append(previous, element('span', '', sprintf(__('Page %1$d of %2$d', 'etch-content-hub-sort'), data.page, Math.max(1, data.pages))), next);
     results.appendChild(paging);
+    current.data = data;
     if (current.focusSort) {
       results.querySelector(`[data-sort="${current.focusSort}"]`)?.focus();
       current.focusSort = null;
@@ -299,56 +315,109 @@
     const tabIcon = element('img', 'etch-hub-sort-settings-icon');
     tabIcon.src = `${config.assetUrl}${sortIcons.none}`;
     tabIcon.alt = '';
-    tab.append(tabIcon, document.createTextNode(__('Hub search and sort', 'etch-content-hub-sort')));
+    tab.append(tabIcon, element('span', 'etch-hub-sort-settings-label', __('Hub search and sort', 'etch-content-hub-sort')));
 
     const content = element('div', 'etch-settings-content etch-hub-sort-settings-panel');
     content.style.display = 'none';
 
-    const row = element('div', 'settings-toggle svelte-2pz811 etch-hub-sort-setting');
-    const wrapper = element('div', 'settings-toggle-input-wrapper svelte-2pz811');
-    const name = element('span', 'settings-toggle-name svelte-2pz811', __('Enable search and sorting', 'etch-content-hub-sort'));
-    const toggle = element('button', 'etch-builder-switch__root');
-    toggle.type = 'button';
-    toggle.setAttribute('role', 'switch');
-    toggle.setAttribute('aria-label', __('Enable Content Hub search and sorting', 'etch-content-hub-sort'));
-    const thumb = element('span', 'etch-builder-switch__thumb');
-    toggle.appendChild(thumb);
-    const description = element('p', 'settings-toggle-description svelte-2pz811', __('Search, sort, and page through all content. Changes save immediately.', 'etch-content-hub-sort'));
-    const status = element('span', 'etch-hub-sort-setting-status');
-    status.setAttribute('role', 'status');
-    const paint = () => {
-      const state = config.enabled ? 'checked' : 'unchecked';
-      toggle.dataset.state = state;
-      toggle.setAttribute('aria-checked', String(config.enabled));
-      thumb.dataset.state = state;
+    const addSetting = ({ label, ariaLabel, description, key, configKey }) => {
+      const row = element('div', 'settings-toggle svelte-2pz811 etch-hub-sort-setting');
+      const wrapper = element('div', 'settings-toggle-input-wrapper svelte-2pz811');
+      const name = element('span', 'settings-toggle-name svelte-2pz811', label);
+      const toggle = element('button', 'etch-builder-switch__root');
+      toggle.type = 'button';
+      toggle.setAttribute('role', 'switch');
+      toggle.setAttribute('aria-label', ariaLabel);
+      const thumb = element('span', 'etch-builder-switch__thumb');
+      toggle.appendChild(thumb);
+      const help = element('p', 'settings-toggle-description svelte-2pz811', description);
+      const status = element('span', 'etch-hub-sort-setting-status');
+      status.setAttribute('role', 'status');
+      const paint = () => {
+        const state = config[configKey] ? 'checked' : 'unchecked';
+        toggle.dataset.state = state;
+        toggle.setAttribute('aria-checked', String(config[configKey]));
+        thumb.dataset.state = state;
+      };
+      paint();
+      toggle.addEventListener('click', async () => {
+        toggle.disabled = true;
+        status.textContent = __('Saving…', 'etch-content-hub-sort');
+        try {
+          const response = await fetch(config.settingsEndpoint, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.nonce },
+            body: JSON.stringify({ [key]: !config[configKey] }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || __('Could not save setting.', 'etch-content-hub-sort'));
+          config.enabled = !!data.enabled;
+          config.actionsLayout = data.actions_layout;
+          paint();
+          status.textContent = __('Saved', 'etch-content-hub-sort');
+          if (key === 'enabled') refresh();
+          else if (view?.data && !view.state.native) renderRows(view, view.data);
+        } catch (error) {
+          status.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
+        } finally {
+          toggle.disabled = false;
+        }
+      });
+      wrapper.append(name, toggle);
+      row.append(wrapper, help, status);
+      content.appendChild(row);
     };
-    paint();
-    toggle.addEventListener('click', async () => {
-      const enabled = !config.enabled;
-      toggle.disabled = true;
-      status.textContent = __('Saving…', 'etch-content-hub-sort');
+    addSetting({
+      label: __('Enable search and sorting', 'etch-content-hub-sort'),
+      ariaLabel: __('Enable Content Hub search and sorting', 'etch-content-hub-sort'),
+      description: __('Search, sort, and page through all content. Changes save immediately.', 'etch-content-hub-sort'),
+      key: 'enabled', configKey: 'enabled',
+    });
+    const placement = element('div', 'settings-toggle svelte-2pz811 etch-hub-sort-setting');
+    const placementWrapper = element('div', 'settings-toggle-input-wrapper svelte-2pz811');
+    const placementLabel = element('span', 'settings-toggle-name svelte-2pz811', __('Actions placement', 'etch-content-hub-sort'));
+    const placementSelect = element('select', 'etch-hub-sort-placement-select');
+    placementSelect.setAttribute('aria-label', __('Actions placement', 'etch-content-hub-sort'));
+    for (const [value, label] of [
+      ['end', __('Both at end', 'etch-content-hub-sort')],
+      ['start', __('Both at start', 'etch-content-hub-sort')],
+      ['split', __('Open after Title, Trash last', 'etch-content-hub-sort')],
+    ]) {
+      const option = element('option', '', label);
+      option.value = value;
+      placementSelect.appendChild(option);
+    }
+    placementSelect.value = config.actionsLayout;
+    const placementHelp = element('p', 'settings-toggle-description svelte-2pz811', __('Choose where the Open and Trash buttons appear in the search and sort table.', 'etch-content-hub-sort'));
+    const placementStatus = element('span', 'etch-hub-sort-setting-status');
+    placementStatus.setAttribute('role', 'status');
+    placementSelect.addEventListener('change', async () => {
+      placementSelect.disabled = true;
+      placementStatus.textContent = __('Saving…', 'etch-content-hub-sort');
       try {
         const response = await fetch(config.settingsEndpoint, {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.nonce },
-          body: JSON.stringify({ enabled }),
+          body: JSON.stringify({ actions_layout: placementSelect.value }),
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || __('Could not save setting.', 'etch-content-hub-sort'));
-        config.enabled = !!data.enabled;
-        paint();
-        status.textContent = __('Saved', 'etch-content-hub-sort');
-        refresh();
+        config.actionsLayout = data.actions_layout;
+        placementSelect.value = config.actionsLayout;
+        placementStatus.textContent = __('Saved', 'etch-content-hub-sort');
+        if (view?.data && !view.state.native) renderRows(view, view.data);
       } catch (error) {
-        status.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
+        placementSelect.value = config.actionsLayout;
+        placementStatus.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
       } finally {
-        toggle.disabled = false;
+        placementSelect.disabled = false;
       }
     });
-    wrapper.append(name, toggle);
-    row.append(wrapper, description, status);
-    content.appendChild(row);
+    placementWrapper.append(placementLabel, placementSelect);
+    placement.append(placementWrapper, placementHelp, placementStatus);
+    content.appendChild(placement);
 
     const footer = element('div', 'etch-settings-buttons svelte-wgfud9 etch-hub-sort-settings-buttons');
     footer.style.display = 'none';

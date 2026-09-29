@@ -10,3 +10,5 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 }
 
 delete_option( 'etch_hub_sort_enabled' );
+delete_option( 'etch_hub_sort_actions_first' );
+delete_option( 'etch_hub_sort_actions_layout' );
