@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.0.2
+Stable tag: 1.1.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -12,9 +12,11 @@ Adds search, sorting, pagination, and WordPress Trash actions to the Etch Conten
 
 == Description ==
 
-This plugin adds a browse table to Etch's Content Hub. It searches and sorts across the full result set and offers 25, 50, or 100 items per page. An Etch table button opens the original Etch view for inline editing and new item creation. A separate Hub search and sort tab in Etch settings turns the feature on or off and offers three Actions layouts: both at the end (default), both at the start, or Open after Title and Trash at the end.
+This plugin adds a browse table to Etch's Content Hub. It searches and sorts across the full result set and offers 25, 50, or 100 items per page. An Etch table button opens the original Etch view for inline editing and new item creation. A separate Hub search and sort tab in Etch settings turns the feature on or off and offers four Actions layouts: both at the end (default), both at the start, Open after Title with Trash last, or Open first with Trash last.
 
-Etch must be installed and active. The plugin uses Etch's current builder interface, so a future Etch update may require a compatibility update. Tested with Etch 1.6.7 and WordPress 7.1.2 on a local site.
+Hierarchical content types, such as Pages, open in a parent and child view. Expand a parent to load its children, or use the Open all / Close all control for every branch on the current page. Large branches have a Load more children control. Sorting applies within each level, while the main pagination counts top-level items. The Hierarchy button switches between the tree and flat list. Hierarchy controls appear only in the browse table. Search results appear as a flat list so matches at every depth remain visible; child results name their parent.
+
+Etch must be installed and active. The plugin uses Etch's current builder interface, so a future Etch update may require a compatibility update. Tested with Etch 1.7.0 and WordPress 7.1.3 on a local site.
 
 Only users with appropriate WordPress capabilities can list, manage, or move items to Trash. The Trash action asks for confirmation and moves eligible items to the standard WordPress Trash.
 
@@ -35,6 +37,15 @@ The browse table reads WordPress content through its own paginated API. Etch's i
 The item moves to WordPress Trash after confirmation, subject to the user's delete permission. It can be restored through WordPress while it remains in Trash.
 
 == Changelog ==
+
+= 1.1.0 =
+
+* Add an expandable hierarchy view for Pages and hierarchical custom post types, with paginated roots and children.
+* Keep search across every level by showing search results as a flat list.
+* Add an Actions placement choice with Open first and Trash last.
+* Place the hierarchy caret before each parent ID and distinguish parent and child rows with subtle color and a left border.
+* Add a single Open all / Close all control for the current page of a hierarchy, and hide hierarchy controls in Etch's original table.
+* Identify child items and their parents in flat lists and search results.
 
 = 1.0.2 =
 

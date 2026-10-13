@@ -37,6 +37,7 @@
     if (!states.has(type)) states.set(type, {
       search: '', sort: 'created', order: 'desc', page: 1,
       perPage: 25, native: false, requestId: 0,
+      hierarchy: (config.hierarchicalTypes || []).includes(type),
     });
     return states.get(type);
   };
@@ -51,6 +52,7 @@
     current.table.hidden = !current.state.native;
     current.results.hidden = current.state.native;
     current.controls.hidden = current.state.native;
+    if (current.hierarchyTools) current.hierarchyTools.hidden = current.state.native;
     current.switchButton.textContent = current.state.native ? __('Browse all', 'etch-content-hub-sort') : __('Etch table', 'etch-content-hub-sort');
     current.switchButton.title = current.state.native
       ? __('Search, sort, and page through all items', 'etch-content-hub-sort')
@@ -59,17 +61,24 @@
 
   function renderRows(current, data) {
     const { state, results } = current;
+    current.treeActionId = (current.treeActionId || 0) + 1;
+    current.bulkOpening = false;
     results.replaceChildren();
     const start = data.total ? (data.page - 1) * data.per_page + 1 : 0;
     const end = Math.min(data.page * data.per_page, data.total);
-    current.message.textContent = sprintf(__('Showing %1$d–%2$d of %3$d', 'etch-content-hub-sort'), start, end, data.total);
+    current.message.textContent = data.hierarchy
+      ? sprintf(__('Showing %1$d–%2$d of %3$d top-level items', 'etch-content-hub-sort'), start, end, data.total)
+      : sprintf(__('Showing %1$d–%2$d of %3$d', 'etch-content-hub-sort'), start, end, data.total);
     results.setAttribute('aria-busy', 'false');
 
     const scroller = element('div', 'etch-hub-sort-scroller');
     const table = element('table', 'etch-hub-sort-table');
+    const hierarchy = !!data.hierarchy;
     const thead = element('thead');
     const headings = element('tr');
     const splitActions = config.actionsLayout === 'split';
+    const openStart = config.actionsLayout === 'open_start';
+    const separateActions = splitActions || openStart;
     const actionsFirst = config.actionsLayout === 'start';
     const actionHeading = (label, single = false) => {
       const heading = element('th', `etch-hub-sort-actions-cell${single ? ' etch-hub-sort-action-single' : ''}`, label);
@@ -77,6 +86,7 @@
       return heading;
     };
     if (actionsFirst) headings.appendChild(actionHeading(__('Actions', 'etch-content-hub-sort')));
+    if (openStart) headings.appendChild(actionHeading(__('Open', 'etch-content-hub-sort'), true));
     for (const [key, label] of columns) {
       const th = element('th');
       th.scope = 'col';
@@ -101,27 +111,135 @@
       headings.appendChild(th);
       if (splitActions && key === 'title') headings.appendChild(actionHeading(__('Open', 'etch-content-hub-sort'), true));
     }
-    if (splitActions) headings.appendChild(actionHeading(__('Trash', 'etch-content-hub-sort'), true));
+    if (separateActions) headings.appendChild(actionHeading(__('Trash', 'etch-content-hub-sort'), true));
     else if (!actionsFirst) headings.appendChild(actionHeading(__('Actions', 'etch-content-hub-sort')));
     thead.appendChild(headings);
     table.appendChild(thead);
 
     const tbody = element('tbody');
-    for (const item of data.items) {
+    const columnCount = columns.length + (separateActions ? 2 : 1);
+    const updateBulkButton = () => {
+      if (!current.bulkButton) return;
+      const canExpand = !!tbody.querySelector('.etch-hub-sort-expand[aria-expanded="false"], .etch-hub-sort-load-more');
+      const hasExpanded = !!tbody.querySelector('.etch-hub-sort-expand[aria-expanded="true"]');
+      const close = current.bulkOpening || (!canExpand && hasExpanded);
+      current.bulkMode = close ? 'close' : 'open';
+      current.bulkButton.textContent = close ? __('Close all', 'etch-content-hub-sort') : __('Open all', 'etch-content-hub-sort');
+      current.bulkButton.title = close
+        ? __('Collapse every branch on this page', 'etch-content-hub-sort')
+        : __('Expand every branch on this page', 'etch-content-hub-sort');
+      current.bulkButton.disabled = !canExpand && !hasExpanded;
+    };
+    const loadChildren = async (parentRow, parentItem, page, depth, nextPageRow = null) => {
+      const marker = element('tr', 'etch-hub-sort-child-message');
+      marker.dataset.depth = String(depth);
+      const markerCell = element('td', '', __('Loading children…', 'etch-content-hub-sort'));
+      markerCell.colSpan = columnCount;
+      marker.appendChild(markerCell);
+      parentRow.parentNode.insertBefore(marker, nextPageRow || parentRow.nextSibling);
+      try {
+        const url = new URL(config.endpoint);
+        for (const [key, value] of Object.entries({
+          type: current.type, search: '', sort: state.sort, order: state.order,
+          page, per_page: state.perPage, hierarchy: true, parent: parentItem.id,
+        })) url.searchParams.set(key, value);
+        const response = await fetch(url, { credentials: 'same-origin', headers: { 'X-WP-Nonce': config.nonce } });
+        const children = await response.json();
+        if (!response.ok) throw new Error(children.message || __('Could not load children.', 'etch-content-hub-sort'));
+        if (view !== current || current.data !== data || !marker.isConnected || parentRow.querySelector('.etch-hub-sort-expand')?.getAttribute('aria-expanded') !== 'true') return false;
+        let last = marker;
+        for (const child of children.items) {
+          const childRow = createRow(child, depth);
+          last.after(childRow);
+          last = childRow;
+        }
+        if (page < children.pages) {
+          const moreRow = element('tr', 'etch-hub-sort-child-more');
+          moreRow.dataset.depth = String(depth);
+          const cell = element('td');
+          cell.colSpan = columnCount;
+          cell.style.setProperty('--etch-hub-depth', depth);
+          cell.appendChild(button(__('Load more children', 'etch-content-hub-sort'), () => {
+            moreRow.etchHubChildrenPromise = loadChildren(parentRow, parentItem, page + 1, depth, moreRow);
+          }, 'etch-hub-sort-load-more'));
+          moreRow.appendChild(cell);
+          last.after(moreRow);
+        }
+        nextPageRow?.remove();
+        return true;
+      } catch (error) {
+        if (marker.isConnected && view === current) {
+          current.message.textContent = error.message || __('Could not load children.', 'etch-content-hub-sort');
+          if (!nextPageRow) {
+            const expand = parentRow.querySelector('.etch-hub-sort-expand');
+            expand?.setAttribute('aria-expanded', 'false');
+            if (expand) {
+              expand.textContent = '▸';
+              expand.setAttribute('aria-label', sprintf(__('Show children of %s', 'etch-content-hub-sort'), parentItem.title || `#${parentItem.id}`));
+            }
+          }
+        }
+        return false;
+      } finally {
+        marker.remove();
+        updateBulkButton();
+      }
+    };
+    const createRow = (item, depth = 0) => {
       const row = element('tr');
+      row.dataset.depth = String(depth);
+      if (hierarchy) {
+        row.classList.add('etch-hub-sort-tree-row');
+        if (depth) row.classList.add('etch-hub-sort-tree-child');
+        if (item.has_children) row.classList.add('etch-hub-sort-tree-parent');
+      }
       for (const [key] of columns) {
         const value = key === 'id' ? `#${item.id}`
           : key === 'created' || key === 'modified' ? formatDate(item[key])
           : item[key] || '';
         const cell = element('td', `etch-hub-sort-cell-${key}`);
         if (key === 'status') cell.appendChild(element('span', `etch-hub-sort-status etch-hub-sort-status-${item.status}`, value));
-        else { cell.textContent = value; cell.title = value; }
+        else if (key === 'id' && hierarchy) {
+          const id = element('div', 'etch-hub-sort-tree-id');
+          id.style.setProperty('--etch-hub-depth', depth);
+          if (item.has_children) {
+            const expand = button('▸', () => {
+              const opened = expand.getAttribute('aria-expanded') === 'true';
+              expand.setAttribute('aria-expanded', String(!opened));
+              expand.textContent = opened ? '▸' : '▾';
+              expand.setAttribute('aria-label', sprintf(opened
+                ? __('Show children of %s', 'etch-content-hub-sort')
+                : __('Hide children of %s', 'etch-content-hub-sort'), item.title || `#${item.id}`));
+              if (opened) {
+                let next = row.nextSibling;
+                while (next && Number(next.dataset.depth) > depth) {
+                  const following = next.nextSibling;
+                  next.remove();
+                  next = following;
+                }
+                updateBulkButton();
+              } else row.etchHubChildrenPromise = loadChildren(row, item, 1, depth + 1);
+            }, 'etch-hub-sort-expand');
+            expand.setAttribute('aria-expanded', 'false');
+            expand.setAttribute('aria-label', sprintf(__('Show children of %s', 'etch-content-hub-sort'), item.title || `#${item.id}`));
+            id.appendChild(expand);
+          } else id.appendChild(element('span', 'etch-hub-sort-tree-spacer'));
+          id.appendChild(element('span', 'etch-hub-sort-sr-only', sprintf(__('Level %d: ', 'etch-content-hub-sort'), depth + 1)));
+          id.appendChild(element('span', '', value));
+          cell.appendChild(id);
+          cell.title = value;
+        } else if (key === 'title' && !hierarchy && item.parent) {
+          cell.classList.add('etch-hub-sort-child-title');
+          cell.appendChild(element('div', '', value));
+          cell.appendChild(element('div', 'etch-hub-sort-parent-label', sprintf(__('Child of %s', 'etch-content-hub-sort'), item.parent_title || `#${item.parent}`)));
+          cell.title = sprintf(__('%1$s — child of %2$s', 'etch-content-hub-sort'), value, item.parent_title || `#${item.parent}`);
+        } else { cell.textContent = value; cell.title = value; }
         row.appendChild(cell);
       }
-      const actions = element('td', `etch-hub-sort-actions-cell${splitActions ? ' etch-hub-sort-action-single' : ''}`);
+      const actions = element('td', `etch-hub-sort-actions-cell${separateActions ? ' etch-hub-sort-action-single' : ''}`);
       const actionButtons = element('div', 'etch-hub-sort-action-buttons');
-      const trashActions = splitActions ? element('td', 'etch-hub-sort-actions-cell etch-hub-sort-action-single') : null;
-      const trashButtons = splitActions ? element('div', 'etch-hub-sort-action-buttons') : null;
+      const trashActions = separateActions ? element('td', 'etch-hub-sort-actions-cell etch-hub-sort-action-single') : null;
+      const trashButtons = separateActions ? element('div', 'etch-hub-sort-action-buttons') : null;
       const open = button('↗', async () => {
         open.disabled = true;
         try {
@@ -152,7 +270,7 @@
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || __('Could not move this item to Trash.', 'etch-content-hub-sort'));
             if (view !== current) return;
-            if (data.items?.length === 1 && state.page > 1) state.page--;
+            if (depth === 0 && data.items?.length === 1 && state.page > 1) state.page--;
             current.focusSearch = true;
             load(current);
           } catch (error) {
@@ -169,18 +287,55 @@
         (trashButtons || actionButtons).appendChild(trash);
       }
       actions.appendChild(actionButtons);
-      if (splitActions) {
+      if (separateActions) {
         trashActions.appendChild(trashButtons);
-        row.querySelector('.etch-hub-sort-cell-title').after(actions);
+        if (openStart) row.prepend(actions);
+        else row.querySelector('.etch-hub-sort-cell-title').after(actions);
         row.appendChild(trashActions);
       } else if (actionsFirst) row.prepend(actions);
       else row.appendChild(actions);
-      tbody.appendChild(row);
-    }
+      return row;
+    };
+    for (const item of data.items) tbody.appendChild(createRow(item));
+    current.openAll = async () => {
+      if (!hierarchy || current.bulkOpening) return;
+      const actionId = ++current.treeActionId;
+      const countMessage = current.message.textContent;
+      current.bulkOpening = true;
+      current.message.textContent = __('Opening all branches on this page…', 'etch-content-hub-sort');
+      updateBulkButton();
+      try {
+        let target;
+        while (actionId === current.treeActionId && view === current && current.data === data
+          && (target = tbody.querySelector('.etch-hub-sort-expand[aria-expanded="false"], .etch-hub-sort-load-more'))) {
+          const row = target.closest('tr');
+          target.click();
+          if (false === await row.etchHubChildrenPromise) return;
+        }
+        if (actionId === current.treeActionId) current.message.textContent = countMessage;
+      } finally {
+        if (actionId === current.treeActionId) {
+          current.bulkOpening = false;
+          updateBulkButton();
+        }
+      }
+    };
+    current.closeAll = () => {
+      if (!hierarchy) return;
+      ++current.treeActionId;
+      current.bulkOpening = false;
+      for (const row of tbody.querySelectorAll('tr[data-depth="0"]')) {
+        const expand = row.querySelector('.etch-hub-sort-expand[aria-expanded="true"]');
+        expand?.click();
+      }
+      current.message.textContent = sprintf(__('Showing %1$d–%2$d of %3$d top-level items', 'etch-content-hub-sort'), start, end, data.total);
+      updateBulkButton();
+    };
+    updateBulkButton();
     if (!data.items.length) {
       const row = element('tr');
       const cell = element('td', 'etch-hub-sort-empty', __('No matching items.', 'etch-content-hub-sort'));
-      cell.colSpan = columns.length + (splitActions ? 2 : 1);
+      cell.colSpan = columnCount;
       row.appendChild(cell);
       tbody.appendChild(row);
     }
@@ -213,6 +368,7 @@
     for (const [key, value] of Object.entries({
       type: current.type, search: state.search, sort: state.sort,
       order: state.order, page: state.page, per_page: state.perPage,
+      hierarchy: state.hierarchy && !state.search.trim(), parent: 0,
     })) url.searchParams.set(key, value);
     current.message.textContent = __('Loading…', 'etch-content-hub-sort');
     current.results.setAttribute('aria-busy', 'true');
@@ -251,16 +407,47 @@
     const message = element('span', 'etch-hub-sort-message');
     message.setAttribute('role', 'status');
     controls.append(search, message, size);
+    const supportsHierarchy = (config.hierarchicalTypes || []).includes(type);
+    const hierarchyTools = supportsHierarchy ? element('div', 'etch-hub-sort-hierarchy-tools') : null;
+    const hierarchyButton = supportsHierarchy ? button(__('Hierarchy', 'etch-content-hub-sort'), () => {
+      state.hierarchy = !state.hierarchy;
+      state.page = 1;
+      syncHierarchy();
+      load(current);
+    }, 'etch-hub-sort-hierarchy') : null;
+    const bulkButton = supportsHierarchy ? button(__('Open all', 'etch-content-hub-sort'), () => {
+      if (current.bulkMode === 'close') current.closeAll?.();
+      else current.openAll?.();
+    }, 'etch-hub-sort-bulk') : null;
+    const syncHierarchy = () => {
+      if (!hierarchyButton) return;
+      hierarchyButton.setAttribute('aria-pressed', String(state.hierarchy));
+      hierarchyButton.disabled = !!state.search.trim();
+      hierarchyButton.title = state.search.trim()
+        ? __('Search results appear as a flat list. Clear search to browse the hierarchy.', 'etch-content-hub-sort')
+        : __('Show parent and child items in a tree', 'etch-content-hub-sort');
+      const showBulk = state.hierarchy && !state.search.trim();
+      bulkButton.hidden = !showBulk;
+      if (!showBulk) bulkButton.disabled = true;
+    };
+    syncHierarchy();
     const switchButton = button('', () => {
       state.native = !state.native;
       syncMode(current);
       if (!state.native) load(current);
     }, 'etch-hub-sort-switch');
-    bar.append(controls, switchButton);
+    bar.append(controls);
+    if (hierarchyTools) {
+      bulkButton.title = __('Expand every branch on this page', 'etch-content-hub-sort');
+      bulkButton.disabled = true;
+      hierarchyTools.append(hierarchyButton, bulkButton);
+      bar.appendChild(hierarchyTools);
+    }
+    bar.appendChild(switchButton);
     const results = element('div', 'etch-hub-sort-results');
     root.append(bar, results);
     table.before(root);
-    const current = { table, type, state, root, controls, switchButton, message, results, search };
+    const current = { table, type, state, root, controls, hierarchyTools, bulkButton, switchButton, message, results, search };
     view = current;
     syncMode(current);
     if (!state.native) load(current);
@@ -269,6 +456,7 @@
     search.addEventListener('input', () => {
       state.search = search.value;
       state.page = 1;
+      syncHierarchy();
       clearTimeout(searchTimer);
       searchTimer = setTimeout(() => load(current), 250);
     });
@@ -383,6 +571,7 @@
       ['end', __('Both at end', 'etch-content-hub-sort')],
       ['start', __('Both at start', 'etch-content-hub-sort')],
       ['split', __('Open after Title, Trash last', 'etch-content-hub-sort')],
+      ['open_start', __('Open first, Trash last', 'etch-content-hub-sort')],
     ]) {
       const option = element('option', '', label);
       option.value = value;

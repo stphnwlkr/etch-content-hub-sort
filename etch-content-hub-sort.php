@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Etch Content Hub Sort
  * Description: Adds search, full-result sorting, pagination, and trash actions to Etch's Content Hub.
- * Version: 1.0.2
+ * Version: 1.1.0
  * Requires at least: 5.9
  * Requires PHP: 8.1
  * Author: Stephen Walker
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** Return the saved layout, including the earlier start/end switch. */
 function etch_hub_sort_actions_layout(): string {
 	$layout = get_option( 'etch_hub_sort_actions_layout', '' );
-	if ( in_array( $layout, array( 'end', 'start', 'split' ), true ) ) {
+	if ( in_array( $layout, array( 'end', 'start', 'split', 'open_start' ), true ) ) {
 		return $layout;
 	}
 	return '1' === get_option( 'etch_hub_sort_actions_first', '0' ) ? 'start' : 'end';
@@ -65,7 +65,7 @@ add_action(
 				'args'                => array(
 					'enabled'       => array( 'type' => 'boolean' ),
 					'actions_first' => array( 'type' => 'boolean' ),
-					'actions_layout' => array( 'type' => 'string', 'enum' => array( 'end', 'start', 'split' ) ),
+					'actions_layout' => array( 'type' => 'string', 'enum' => array( 'end', 'start', 'split', 'open_start' ) ),
 				),
 			)
 		);
@@ -130,6 +130,8 @@ add_action(
 					$page     = max( 1, absint( $request->get_param( 'page' ) ) );
 					$per_page = min( 100, max( 1, absint( $request->get_param( 'per_page' ) ) ?: 25 ) );
 					$search   = sanitize_text_field( (string) $request->get_param( 'search' ) );
+					$hierarchy = $post_type->hierarchical && (bool) $request->get_param( 'hierarchy' ) && '' === trim( $search );
+					$parent    = $hierarchy ? absint( $request->get_param( 'parent' ) ) : 0;
 					$args     = array(
 						'post_type'           => $type,
 						'post_status'         => array( 'publish', 'draft' ),
@@ -141,6 +143,9 @@ add_action(
 						'ignore_sticky_posts' => true,
 						'etch_hub_sort_status' => 'status' === $sort,
 					);
+					if ( $hierarchy ) {
+						$args['post_parent'] = $parent;
+					}
 
 					$status_order = static function ( string $orderby, WP_Query $query ) use ( $order ): string {
 						if ( ! $query->get( 'etch_hub_sort_status' ) ) {
@@ -152,9 +157,29 @@ add_action(
 					add_filter( 'posts_orderby', $status_order, 10, 2 );
 					$query = new WP_Query( $args );
 					remove_filter( 'posts_orderby', $status_order, 10 );
+					$parents_with_children = array();
+					if ( $hierarchy && $query->posts ) {
+						foreach ( $query->posts as $post ) {
+							$children = get_posts(
+								array(
+									'post_type'              => $type,
+									'post_status'            => array( 'publish', 'draft' ),
+									'post_parent'            => $post->ID,
+									'posts_per_page'         => 1,
+									'fields'                 => 'ids',
+									'no_found_rows'          => true,
+									'update_post_meta_cache' => false,
+									'update_post_term_cache' => false,
+								)
+							);
+							if ( $children ) {
+								$parents_with_children[] = $post->ID;
+							}
+						}
+					}
 
 					$items = array_map(
-						static function ( WP_Post $post ): array {
+						static function ( WP_Post $post ) use ( $parents_with_children ): array {
 							return array(
 								'id'       => $post->ID,
 								'title'    => get_the_title( $post ),
@@ -162,6 +187,9 @@ add_action(
 								'status'   => $post->post_status,
 								'created'  => $post->post_date,
 								'modified' => $post->post_modified,
+								'parent'   => (int) $post->post_parent,
+								'parent_title' => $post->post_parent ? get_the_title( $post->post_parent ) : '',
+								'has_children' => in_array( $post->ID, $parents_with_children, true ),
 								'can_delete' => current_user_can( 'delete_post', $post->ID ),
 							);
 						},
@@ -175,6 +203,8 @@ add_action(
 							'pages'    => (int) $query->max_num_pages,
 							'page'     => $page,
 							'per_page' => $per_page,
+							'hierarchy' => $hierarchy,
+							'parent'   => $parent,
 						)
 					);
 				},
@@ -185,6 +215,8 @@ add_action(
 					'page'     => array( 'type' => 'integer', 'minimum' => 1, 'default' => 1 ),
 					'per_page' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'default' => 25 ),
 					'search'   => array( 'type' => 'string', 'default' => '' ),
+					'hierarchy' => array( 'type' => 'boolean', 'default' => false ),
+					'parent'   => array( 'type' => 'integer', 'minimum' => 0, 'default' => 0 ),
 				),
 			)
 		);
@@ -201,10 +233,14 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '1.0.2';
+		$version = '1.1.0';
 		$types   = array();
+		$hierarchical_types = array();
 		foreach ( get_post_types( array( 'show_in_rest' => true ), 'objects' ) as $post_type ) {
 			$types[ $post_type->labels->name ] = $post_type->name;
+			if ( $post_type->hierarchical ) {
+				$hierarchical_types[] = $post_type->name;
+			}
 		}
 
 		wp_enqueue_style( 'etch-content-hub-sort', $url . 'assets/sort.css', array(), $version );
@@ -219,6 +255,7 @@ add_action(
 					'assetUrl' => esc_url_raw( $url . 'assets/' ),
 					'nonce'    => wp_create_nonce( 'wp_rest' ),
 					'types'    => $types,
+					'hierarchicalTypes' => $hierarchical_types,
 					'enabled'  => '0' !== get_option( 'etch_hub_sort_enabled', '1' ),
 					'actionsLayout' => etch_hub_sort_actions_layout(),
 					'canManage' => current_user_can( 'manage_options' ),
