@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Etch Content Hub Sort
  * Description: Adds search, full-result sorting, pagination, and trash actions to Etch's Content Hub.
- * Version: 1.2.0
+ * Version: 1.2.1
  * Requires at least: 5.9
  * Requires PHP: 8.1
  * Author: Stephen Walker
@@ -344,7 +344,7 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '1.2.0';
+		$version = '1.2.1';
 		$types   = array();
 		$hierarchical_types = array();
 		foreach ( get_post_types( array( 'show_in_rest' => true ), 'objects' ) as $post_type ) {

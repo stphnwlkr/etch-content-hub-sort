@@ -48,16 +48,32 @@
   };
 
   function syncMode(current) {
+    const nativeLoading = current.state.native && current.state.refreshingNative;
     current.root.classList.toggle('etch-hub-sort-native', current.state.native);
-    current.table.hidden = !current.state.native;
+    current.table.hidden = !current.state.native || nativeLoading;
     current.results.hidden = current.state.native;
     current.controls.hidden = current.state.native;
     if (current.hierarchyTools) current.hierarchyTools.hidden = current.state.native;
     current.newButton.hidden = current.state.native;
-    current.switchButton.textContent = current.state.native ? __('Browse all', 'etch-content-hub-sort') : __('Etch table', 'etch-content-hub-sort');
+    current.nativeLoading.hidden = !nativeLoading;
+    current.switchButton.disabled = nativeLoading;
+    current.switchButton.textContent = nativeLoading
+      ? __('Updating Etch table…', 'etch-content-hub-sort')
+      : current.state.native ? __('Browse all', 'etch-content-hub-sort') : __('Etch table', 'etch-content-hub-sort');
     current.switchButton.title = current.state.native
       ? __('Search, sort, and page through all items', 'etch-content-hub-sort')
       : __('Use Etch’s original table for inline editing and creating items', 'etch-content-hub-sort');
+  }
+
+  function refreshEtchPosts(current) {
+    const refresh = window.etch?.navigation?.listPostsAsync;
+    if (typeof refresh !== 'function') return;
+    const previous = current.state.etchRefresh || Promise.resolve();
+    const pending = previous.then(() => refresh(current.type)).then(() => true, () => false);
+    current.state.etchRefresh = pending;
+    pending.then(() => {
+      if (current.state.etchRefresh === pending) current.state.etchRefresh = null;
+    });
   }
 
   function showQuickEdit(current, item = null) {
@@ -216,6 +232,7 @@
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || __('Could not save the item.', 'etch-content-hub-sort'));
         dialog.close();
+        refreshEtchPosts(current);
         if (view !== current) return;
         showSaveNotice(current, creating
           ? sprintf(__('Created “%s” as %s.', 'etch-content-hub-sort'), title, statusSelect.selectedOptions[0].textContent)
@@ -234,6 +251,7 @@
   }
 
   function showSaveNotice(current, message, id) {
+    current.state.lastNotice = { message, id };
     const notice = current.notice;
     notice.replaceChildren();
     notice.appendChild(element('span', '', message));
@@ -246,7 +264,10 @@
         open.disabled = false;
       }
     });
-    const dismiss = button(__('Dismiss', 'etch-content-hub-sort'), () => { notice.hidden = true; }, 'etch-hub-sort-notice-dismiss');
+    const dismiss = button(__('Dismiss', 'etch-content-hub-sort'), () => {
+      current.state.lastNotice = null;
+      notice.hidden = true;
+    }, 'etch-hub-sort-notice-dismiss');
     notice.append(open, dismiss);
     notice.hidden = false;
   }
@@ -630,10 +651,21 @@
       if (!showBulk) bulkButton.disabled = true;
     };
     syncHierarchy();
-    const switchButton = button('', () => {
-      state.native = !state.native;
+    const switchButton = button('', async () => {
+      if (state.native) {
+        state.native = false;
+        syncMode(current);
+        load(current);
+        return;
+      }
+      state.native = true;
+      state.refreshingNative = !!state.etchRefresh;
       syncMode(current);
-      if (!state.native) load(current);
+      if (state.refreshingNative) {
+        await state.etchRefresh;
+        state.refreshingNative = false;
+        if (view?.state === state && view.type === current.type) syncMode(view);
+      }
     }, 'etch-hub-sort-switch');
     const newButton = button(__('New item', 'etch-content-hub-sort'), () => showQuickEdit(current), 'etch-hub-sort-new');
     newButton.disabled = true;
@@ -648,12 +680,16 @@
     const notice = element('div', 'etch-hub-sort-notice');
     notice.setAttribute('role', 'status');
     notice.hidden = true;
+    const nativeLoading = element('div', 'etch-hub-sort-native-loading', __('Updating Etch table…', 'etch-content-hub-sort'));
+    nativeLoading.setAttribute('role', 'status');
+    nativeLoading.hidden = true;
     const results = element('div', 'etch-hub-sort-results');
-    root.append(bar, notice, results);
+    root.append(bar, notice, nativeLoading, results);
     table.before(root);
-    const current = { table, type, state, root, controls, hierarchyTools, bulkButton, newButton, switchButton, message, notice, results, search, syncHierarchy };
+    const current = { table, type, state, root, controls, hierarchyTools, bulkButton, newButton, switchButton, message, notice, nativeLoading, results, search, syncHierarchy };
     view = current;
     syncMode(current);
+    if (state.lastNotice) showSaveNotice(current, state.lastNotice.message, state.lastNotice.id);
     if (!state.native) load(current);
 
     let searchTimer;

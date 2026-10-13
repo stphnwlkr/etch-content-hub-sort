@@ -145,6 +145,8 @@
 .etch-hub-sort-notice[hidden], .etch-hub-sort-native .etch-hub-sort-notice { display: none; }
 .etch-hub-sort-notice .etch-hub-sort-button { padding: 0.25rem 0.5rem; }
 .etch-hub-sort-notice-dismiss { margin-left: auto; }
+.etch-hub-sort-native-loading { padding: 1.5rem; color: var(--e-foreground-color-muted, #aaa); }
+.etch-hub-sort-native-loading[hidden] { display: none; }
 .etch-hub-sort-tree-id {
   display: flex;
   align-items: center;
