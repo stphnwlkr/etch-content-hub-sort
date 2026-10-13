@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.2.1
+Stable tag: 1.2.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -39,6 +39,10 @@ Quick edit changes status and parent. Use the Open button to edit the item's con
 The item moves to WordPress Trash after confirmation, subject to the user's delete permission. It can be restored through WordPress while it remains in Trash.
 
 == Changelog ==
+
+= 1.2.2 =
+
+* Refresh Etch's post list only when switching to its table after a create, Quick edit, or Trash action, avoiding an extra full-list request after every change.
 
 = 1.2.1 =
 

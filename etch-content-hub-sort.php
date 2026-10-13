@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Etch Content Hub Sort
  * Description: Adds search, full-result sorting, pagination, and trash actions to Etch's Content Hub.
- * Version: 1.2.1
+ * Version: 1.2.2
  * Requires at least: 5.9
  * Requires PHP: 8.1
  * Author: Stephen Walker
@@ -266,23 +266,21 @@ add_action(
 					remove_filter( 'posts_orderby', $status_order, 10 );
 					$parents_with_children = array();
 					if ( $hierarchy && $query->posts ) {
-						foreach ( $query->posts as $post ) {
-							$children = get_posts(
-								array(
-									'post_type'              => $type,
-									'post_status'            => array( 'publish', 'draft' ),
-									'post_parent'            => $post->ID,
-									'posts_per_page'         => 1,
-									'fields'                 => 'ids',
-									'no_found_rows'          => true,
-									'update_post_meta_cache' => false,
-									'update_post_term_cache' => false,
-								)
-							);
-							if ( $children ) {
-								$parents_with_children[] = $post->ID;
-							}
-						}
+						global $wpdb;
+						$parent_ids = array_map( 'intval', wp_list_pluck( $query->posts, 'ID' ) );
+						$placeholders = implode( ', ', array_fill( 0, count( $parent_ids ), '%d' ) );
+						$parent_query = $wpdb->prepare(
+							// The interpolated tokens are only %d placeholders, with each ID bound below.
+							// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+							"SELECT DISTINCT post_parent FROM {$wpdb->posts} WHERE post_type = %s AND post_status IN ('publish', 'draft') AND post_parent IN ({$placeholders})",
+							array_merge( array( $type ), $parent_ids )
+						);
+						// One bounded query avoids querying once per row. Results change with post edits, so cross-request caching risks stale hierarchy indicators.
+						$parents_with_children = array_map(
+							'intval',
+							// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+							$wpdb->get_col( $parent_query )
+						);
 					}
 
 					$items = array_map(
@@ -344,7 +342,7 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '1.2.1';
+		$version = '1.2.2';
 		$types   = array();
 		$hierarchical_types = array();
 		foreach ( get_post_types( array( 'show_in_rest' => true ), 'objects' ) as $post_type ) {

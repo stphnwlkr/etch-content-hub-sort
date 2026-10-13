@@ -65,17 +65,6 @@
       : __('Use Etch’s original table for inline editing and creating items', 'etch-content-hub-sort');
   }
 
-  function refreshEtchPosts(current) {
-    const refresh = window.etch?.navigation?.listPostsAsync;
-    if (typeof refresh !== 'function') return;
-    const previous = current.state.etchRefresh || Promise.resolve();
-    const pending = previous.then(() => refresh(current.type)).then(() => true, () => false);
-    current.state.etchRefresh = pending;
-    pending.then(() => {
-      if (current.state.etchRefresh === pending) current.state.etchRefresh = null;
-    });
-  }
-
   function showQuickEdit(current, item = null) {
     const creating = !item;
     const hierarchical = (config.hierarchicalTypes || []).includes(current.type);
@@ -232,7 +221,7 @@
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || __('Could not save the item.', 'etch-content-hub-sort'));
         dialog.close();
-        refreshEtchPosts(current);
+        current.state.etchDirty = true;
         if (view !== current) return;
         showSaveNotice(current, creating
           ? sprintf(__('Created “%s” as %s.', 'etch-content-hub-sort'), title, statusSelect.selectedOptions[0].textContent)
@@ -489,6 +478,7 @@
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || __('Could not move this item to Trash.', 'etch-content-hub-sort'));
+            state.etchDirty = true;
             if (view !== current) return;
             if (depth === 0 && data.items?.length === 1 && state.page > 1) state.page--;
             current.focusSearch = true;
@@ -658,13 +648,28 @@
         load(current);
         return;
       }
+      const refresh = window.etch?.navigation?.listPostsAsync;
+      if (state.etchDirty && typeof refresh !== 'function') {
+        current.message.textContent = __('Etch table refresh is unavailable. Browse all is current.', 'etch-content-hub-sort');
+        return;
+      }
       state.native = true;
-      state.refreshingNative = !!state.etchRefresh;
+      state.refreshingNative = !!state.etchDirty;
       syncMode(current);
       if (state.refreshingNative) {
-        await state.etchRefresh;
+        let refreshed = false;
+        try {
+          await refresh(current.type);
+          refreshed = true;
+          state.etchDirty = false;
+        } catch {
+          state.native = false;
+        }
         state.refreshingNative = false;
-        if (view?.state === state && view.type === current.type) syncMode(view);
+        if (view?.state === state && view.type === current.type) {
+          syncMode(view);
+          if (!refreshed) view.message.textContent = __('Etch table could not be refreshed. Try again.', 'etch-content-hub-sort');
+        }
       }
     }, 'etch-hub-sort-switch');
     const newButton = button(__('New item', 'etch-content-hub-sort'), () => showQuickEdit(current), 'etch-hub-sort-new');
