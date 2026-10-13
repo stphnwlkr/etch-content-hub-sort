@@ -53,10 +53,202 @@
     current.results.hidden = current.state.native;
     current.controls.hidden = current.state.native;
     if (current.hierarchyTools) current.hierarchyTools.hidden = current.state.native;
+    current.newButton.hidden = current.state.native;
     current.switchButton.textContent = current.state.native ? __('Browse all', 'etch-content-hub-sort') : __('Etch table', 'etch-content-hub-sort');
     current.switchButton.title = current.state.native
       ? __('Search, sort, and page through all items', 'etch-content-hub-sort')
       : __('Use Etch’s original table for inline editing and creating items', 'etch-content-hub-sort');
+  }
+
+  function showQuickEdit(current, item = null) {
+    const creating = !item;
+    const hierarchical = (config.hierarchicalTypes || []).includes(current.type);
+    const dialog = element('dialog', 'etch-hub-sort-dialog');
+    const form = element('form', 'etch-hub-sort-edit-form');
+    const heading = element('h2', '', creating
+      ? __('New item', 'etch-content-hub-sort')
+      : sprintf(__('Quick edit: %s', 'etch-content-hub-sort'), item.title || `#${item.id}`));
+    heading.id = 'etch-hub-sort-edit-heading';
+    dialog.setAttribute('aria-labelledby', heading.id);
+    const header = element('div', 'etch-hub-sort-dialog-header');
+    const description = element('p', '', creating
+      ? __('Create an item as a draft or publish it now.', 'etch-content-hub-sort')
+      : __('Update this item’s status and parent.', 'etch-content-hub-sort'));
+    header.append(heading, description);
+    form.appendChild(header);
+
+    let titleInput;
+    if (creating) {
+      const titleLabel = element('label', '', __('Title', 'etch-content-hub-sort'));
+      titleInput = element('input', 'etch-hub-sort-edit-input');
+      titleInput.id = 'etch-hub-sort-edit-title';
+      titleLabel.htmlFor = titleInput.id;
+      titleInput.type = 'text';
+      titleInput.required = true;
+      titleInput.maxLength = 200;
+      const titleField = element('div', 'etch-hub-sort-edit-field');
+      titleField.append(titleLabel, titleInput);
+      form.appendChild(titleField);
+    }
+
+    const statusLabel = element('label', '', __('Status', 'etch-content-hub-sort'));
+    const statusSelect = element('select', 'etch-hub-sort-edit-input');
+    statusSelect.id = 'etch-hub-sort-edit-status';
+    statusLabel.htmlFor = statusSelect.id;
+    for (const [value, label] of [['draft', __('Draft', 'etch-content-hub-sort')], ['publish', __('Publish', 'etch-content-hub-sort')]]) {
+      const option = element('option', '', label);
+      option.value = value;
+      if (value === 'publish' && !current.data?.can_publish) option.disabled = true;
+      statusSelect.appendChild(option);
+    }
+    statusSelect.value = item?.status || 'draft';
+    const statusField = element('div', 'etch-hub-sort-edit-field');
+    statusField.append(statusLabel, statusSelect);
+    form.appendChild(statusField);
+
+    let parentList;
+    let parentSearch;
+    let parentMessage;
+    let searchParents;
+    let parentId = item?.parent || 0;
+    let parentName = item?.parent_title || '';
+    if (hierarchical) {
+      const parentLabel = element('span', 'etch-hub-sort-parent-label-heading', __('Parent', 'etch-content-hub-sort'));
+      parentLabel.id = 'etch-hub-sort-edit-parent-label';
+      parentList = element('div', 'etch-hub-sort-parent-list');
+      parentList.setAttribute('role', 'radiogroup');
+      parentList.setAttribute('aria-labelledby', parentLabel.id);
+      const searchLabel = element('label', '', __('Find a parent', 'etch-content-hub-sort'));
+      parentSearch = element('input', 'etch-hub-sort-edit-input');
+      parentSearch.id = 'etch-hub-sort-parent-search';
+      parentSearch.type = 'search';
+      parentSearch.placeholder = __('Search by title…', 'etch-content-hub-sort');
+      searchLabel.htmlFor = parentSearch.id;
+      parentMessage = element('p', 'etch-hub-sort-parent-message');
+      parentMessage.setAttribute('role', 'status');
+      const parentField = element('div', 'etch-hub-sort-edit-field etch-hub-sort-parent-field');
+      parentField.append(parentLabel, searchLabel, parentSearch, parentList, parentMessage);
+      form.appendChild(parentField);
+      const parentChoice = (id, title) => {
+        const choice = element('label', 'etch-hub-sort-parent-choice');
+        const radio = element('input');
+        radio.type = 'radio';
+        radio.name = 'etch-hub-sort-parent';
+        radio.value = String(id);
+        radio.checked = id === parentId;
+        const text = element('span', '', title);
+        choice.append(radio, text);
+        radio.addEventListener('change', () => {
+          if (!radio.checked) return;
+          parentId = id;
+          parentName = title;
+        });
+        return choice;
+      };
+      let searchTimer;
+      let parentRequestId = 0;
+      searchParents = async () => {
+        const requestId = ++parentRequestId;
+        parentMessage.textContent = __('Loading parents…', 'etch-content-hub-sort');
+        const url = new URL(config.endpoint);
+        for (const [key, value] of Object.entries({
+          type: current.type, search: parentSearch.value.trim(), sort: 'title', order: 'asc',
+          page: 1, per_page: 50, hierarchy: false,
+        })) url.searchParams.set(key, value);
+        try {
+          const response = await fetch(url, { credentials: 'same-origin', headers: { 'X-WP-Nonce': config.nonce } });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || __('Could not load parents.', 'etch-content-hub-sort'));
+          if (requestId !== parentRequestId || !dialog.isConnected) return;
+          parentList.replaceChildren();
+          parentList.appendChild(parentChoice(0, __('No parent', 'etch-content-hub-sort')));
+          if (parentId && !data.items.some(candidate => candidate.id === parentId)) {
+            parentList.appendChild(parentChoice(parentId, parentName || `#${parentId}`));
+          }
+          let matches = 0;
+          for (const candidate of data.items) {
+            if (candidate.id === item?.id || candidate.ancestors?.includes(item?.id)) continue;
+            if (!candidate.can_edit && candidate.id !== parentId) continue;
+            parentList.appendChild(parentChoice(candidate.id, candidate.title ? `${candidate.title} (#${candidate.id})` : `#${candidate.id}`));
+            matches += 1;
+          }
+          parentMessage.textContent = data.pages > 1
+            ? __('Showing the first 50 matches. Search to narrow the list.', 'etch-content-hub-sort')
+            : matches ? '' : __('No matching parents.', 'etch-content-hub-sort');
+        } catch (error) {
+          if (requestId === parentRequestId && dialog.isConnected) parentMessage.textContent = error.message || __('Could not load parents.', 'etch-content-hub-sort');
+        }
+      };
+      parentSearch.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(searchParents, 250);
+      });
+    }
+
+    const message = element('p', 'etch-hub-sort-edit-message');
+    message.setAttribute('role', 'status');
+    const actions = element('div', 'etch-hub-sort-dialog-actions');
+    const cancel = button(__('Cancel', 'etch-content-hub-sort'), () => dialog.close());
+    const save = element('button', 'etch-hub-sort-button', creating ? __('Create', 'etch-content-hub-sort') : __('Save', 'etch-content-hub-sort'));
+    save.type = 'submit';
+    actions.append(cancel, save);
+    form.append(message, actions);
+    dialog.appendChild(form);
+    dialog.addEventListener('close', () => dialog.remove());
+    dialog.addEventListener('cancel', event => { if (save.disabled) event.preventDefault(); });
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const title = titleInput?.value.trim();
+      if (creating && !title) {
+        titleInput.focus();
+        return;
+      }
+      save.disabled = true;
+      cancel.disabled = true;
+      message.textContent = creating ? __('Creating…', 'etch-content-hub-sort') : __('Saving…', 'etch-content-hub-sort');
+      try {
+        const response = await fetch(creating ? config.createEndpoint : `${config.endpoint}/${item.id}`, {
+          method: creating ? 'POST' : 'PATCH',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.nonce },
+          body: JSON.stringify({ type: current.type, title, status: statusSelect.value, parent: hierarchical ? parentId : 0 }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || __('Could not save the item.', 'etch-content-hub-sort'));
+        dialog.close();
+        if (view !== current) return;
+        showSaveNotice(current, creating
+          ? sprintf(__('Created “%s” as %s.', 'etch-content-hub-sort'), title, statusSelect.selectedOptions[0].textContent)
+          : __('Changes saved.', 'etch-content-hub-sort'), creating ? result.id : item.id);
+        load(current);
+      } catch (error) {
+        message.textContent = error.message || __('Could not save the item.', 'etch-content-hub-sort');
+        save.disabled = false;
+        cancel.disabled = false;
+      }
+    });
+    current.root.appendChild(dialog);
+    dialog.showModal();
+    if (searchParents) searchParents();
+    (titleInput || parentSearch || statusSelect).focus();
+  }
+
+  function showSaveNotice(current, message, id) {
+    const notice = current.notice;
+    notice.replaceChildren();
+    notice.appendChild(element('span', '', message));
+    const open = button(__('Open in Builder', 'etch-content-hub-sort'), async () => {
+      open.disabled = true;
+      try {
+        await window.etch.navigation.openPostAsync(id);
+      } catch (error) {
+        notice.querySelector('span').textContent = error.message || __('Could not open this item.', 'etch-content-hub-sort');
+        open.disabled = false;
+      }
+    });
+    const dismiss = button(__('Dismiss', 'etch-content-hub-sort'), () => { notice.hidden = true; }, 'etch-hub-sort-notice-dismiss');
+    notice.append(open, dismiss);
+    notice.hidden = false;
   }
 
   function renderRows(current, data) {
@@ -70,6 +262,7 @@
       ? sprintf(__('Showing %1$d–%2$d of %3$d top-level items', 'etch-content-hub-sort'), start, end, data.total)
       : sprintf(__('Showing %1$d–%2$d of %3$d', 'etch-content-hub-sort'), start, end, data.total);
     results.setAttribute('aria-busy', 'false');
+    current.newButton.disabled = !data.can_create;
 
     const scroller = element('div', 'etch-hub-sort-scroller');
     const table = element('table', 'etch-hub-sort-table');
@@ -235,6 +428,12 @@
           cell.title = sprintf(__('%1$s — child of %2$s', 'etch-content-hub-sort'), value, item.parent_title || `#${item.parent}`);
         } else { cell.textContent = value; cell.title = value; }
         row.appendChild(cell);
+      }
+      if (item.can_edit) {
+        const titleCell = row.querySelector('.etch-hub-sort-cell-title');
+        const edit = button(__('Quick edit', 'etch-content-hub-sort'), () => showQuickEdit(current, item), 'etch-hub-sort-quick-edit');
+        edit.setAttribute('aria-label', sprintf(__('Quick edit %s', 'etch-content-hub-sort'), item.title || `#${item.id}`));
+        (titleCell.firstElementChild || titleCell).appendChild(edit);
       }
       const actions = element('td', `etch-hub-sort-actions-cell${separateActions ? ' etch-hub-sort-action-single' : ''}`);
       const actionButtons = element('div', 'etch-hub-sort-action-buttons');
@@ -436,6 +635,8 @@
       syncMode(current);
       if (!state.native) load(current);
     }, 'etch-hub-sort-switch');
+    const newButton = button(__('New item', 'etch-content-hub-sort'), () => showQuickEdit(current), 'etch-hub-sort-new');
+    newButton.disabled = true;
     bar.append(controls);
     if (hierarchyTools) {
       bulkButton.title = __('Expand every branch on this page', 'etch-content-hub-sort');
@@ -443,11 +644,14 @@
       hierarchyTools.append(hierarchyButton, bulkButton);
       bar.appendChild(hierarchyTools);
     }
-    bar.appendChild(switchButton);
+    bar.append(newButton, switchButton);
+    const notice = element('div', 'etch-hub-sort-notice');
+    notice.setAttribute('role', 'status');
+    notice.hidden = true;
     const results = element('div', 'etch-hub-sort-results');
-    root.append(bar, results);
+    root.append(bar, notice, results);
     table.before(root);
-    const current = { table, type, state, root, controls, hierarchyTools, bulkButton, switchButton, message, results, search };
+    const current = { table, type, state, root, controls, hierarchyTools, bulkButton, newButton, switchButton, message, notice, results, search, syncHierarchy };
     view = current;
     syncMode(current);
     if (!state.native) load(current);

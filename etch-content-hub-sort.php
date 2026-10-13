@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Etch Content Hub Sort
  * Description: Adds search, full-result sorting, pagination, and trash actions to Etch's Content Hub.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Requires at least: 5.9
  * Requires PHP: 8.1
  * Author: Stephen Walker
@@ -22,6 +22,22 @@ function etch_hub_sort_actions_layout(): string {
 		return $layout;
 	}
 	return '1' === get_option( 'etch_hub_sort_actions_first', '0' ) ? 'start' : 'end';
+}
+
+/** Validate a parent assignment for a hierarchical post type. */
+function etch_hub_sort_parent_error( WP_Post_Type $post_type, int $parent_id, int $post_id = 0 ): ?WP_Error {
+	if ( 0 === $parent_id ) {
+		return null;
+	}
+	$parent = get_post( $parent_id );
+	$unchanged = $post_id && $parent_id === (int) get_post_field( 'post_parent', $post_id );
+	if ( ! $post_type->hierarchical || ! $parent || $parent->post_type !== $post_type->name || ! in_array( $parent->post_status, array( 'publish', 'draft' ), true ) || ( ! $unchanged && ! current_user_can( 'edit_post', $parent_id ) ) ) {
+		return new WP_Error( 'etch_hub_sort_invalid_parent', __( 'Choose an editable parent from this content type.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
+	}
+	if ( $post_id && ( $parent_id === $post_id || in_array( $post_id, array_map( 'intval', get_post_ancestors( $parent_id ) ), true ) ) ) {
+		return new WP_Error( 'etch_hub_sort_parent_cycle', __( 'An item cannot be its own parent or a child of its descendant.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
+	}
+	return null;
 }
 
 add_action(
@@ -66,6 +82,97 @@ add_action(
 					'enabled'       => array( 'type' => 'boolean' ),
 					'actions_first' => array( 'type' => 'boolean' ),
 					'actions_layout' => array( 'type' => 'string', 'enum' => array( 'end', 'start', 'split', 'open_start' ) ),
+				),
+			)
+		);
+		register_rest_route(
+			'etch-hub-sort/v1',
+			'/posts/create',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'permission_callback' => static function (): bool {
+					return current_user_can( 'edit_posts' );
+				},
+				'callback'            => static function ( WP_REST_Request $request ) {
+					$type = sanitize_key( (string) $request->get_param( 'type' ) );
+					$post_type = get_post_type_object( $type );
+					if ( ! $post_type || ! $post_type->show_in_rest || ! current_user_can( $post_type->cap->create_posts ) ) {
+						return new WP_Error( 'etch_hub_sort_forbidden', __( 'This content type is unavailable.', 'etch-content-hub-sort' ), array( 'status' => 403 ) );
+					}
+					$status = sanitize_key( (string) $request->get_param( 'status' ) );
+					if ( 'publish' === $status && ! current_user_can( $post_type->cap->publish_posts ) ) {
+						return new WP_Error( 'etch_hub_sort_cannot_publish', __( 'You cannot publish this content type.', 'etch-content-hub-sort' ), array( 'status' => 403 ) );
+					}
+					$title = trim( sanitize_text_field( (string) $request->get_param( 'title' ) ) );
+					if ( '' === $title ) {
+						return new WP_Error( 'etch_hub_sort_missing_title', __( 'Enter a title.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
+					}
+					$parent_id = absint( $request->get_param( 'parent' ) );
+					$parent_error = etch_hub_sort_parent_error( $post_type, $parent_id );
+					if ( $parent_error ) {
+						return $parent_error;
+					}
+					$id = wp_insert_post(
+						array(
+							'post_type'   => $type,
+							'post_status' => $status,
+							'post_title'  => $title,
+							'post_parent' => $parent_id,
+							'post_author' => get_current_user_id(),
+						),
+						true
+					);
+					if ( is_wp_error( $id ) || ! $id ) {
+						return is_wp_error( $id ) ? $id : new WP_Error( 'etch_hub_sort_create_failed', __( 'Could not create the item.', 'etch-content-hub-sort' ), array( 'status' => 500 ) );
+					}
+					$response = rest_ensure_response( array( 'id' => $id, 'parent' => $parent_id, 'status' => $status ) );
+					$response->set_status( 201 );
+					return $response;
+				},
+				'args'                => array(
+					'type'   => array( 'type' => 'string', 'required' => true ),
+					'title'  => array( 'type' => 'string', 'required' => true ),
+					'status' => array( 'type' => 'string', 'enum' => array( 'draft', 'publish' ), 'required' => true ),
+					'parent' => array( 'type' => 'integer', 'minimum' => 0, 'default' => 0 ),
+				),
+			)
+		);
+		register_rest_route(
+			'etch-hub-sort/v1',
+			'/posts/(?P<id>\d+)',
+			array(
+				'methods'             => WP_REST_Server::EDITABLE,
+				'permission_callback' => static function ( WP_REST_Request $request ): bool {
+					return current_user_can( 'edit_post', absint( $request['id'] ) );
+				},
+				'callback'            => static function ( WP_REST_Request $request ) {
+					$id = absint( $request['id'] );
+					$post = get_post( $id );
+					$type = sanitize_key( (string) $request->get_param( 'type' ) );
+					$post_type = get_post_type_object( $type );
+					if ( ! $post || ! $post_type || $post->post_type !== $type || ! $post_type->show_in_rest || ! in_array( $post->post_status, array( 'publish', 'draft' ), true ) ) {
+						return new WP_Error( 'etch_hub_sort_missing_post', __( 'This item is no longer in the list.', 'etch-content-hub-sort' ), array( 'status' => 404 ) );
+					}
+					$status = sanitize_key( (string) $request->get_param( 'status' ) );
+					if ( 'publish' === $status && 'publish' !== $post->post_status && ! current_user_can( $post_type->cap->publish_posts ) ) {
+						return new WP_Error( 'etch_hub_sort_cannot_publish', __( 'You cannot publish this content type.', 'etch-content-hub-sort' ), array( 'status' => 403 ) );
+					}
+					$parent_id = absint( $request->get_param( 'parent' ) );
+					$parent_error = etch_hub_sort_parent_error( $post_type, $parent_id, $id );
+					if ( $parent_error ) {
+						return $parent_error;
+					}
+					$updated = wp_update_post( array( 'ID' => $id, 'post_status' => $status, 'post_parent' => $parent_id ), true );
+					if ( is_wp_error( $updated ) || ! $updated ) {
+						return is_wp_error( $updated ) ? $updated : new WP_Error( 'etch_hub_sort_update_failed', __( 'Could not update the item.', 'etch-content-hub-sort' ), array( 'status' => 500 ) );
+					}
+					return rest_ensure_response( array( 'id' => $id, 'parent' => $parent_id, 'status' => $status ) );
+				},
+				'args'                => array(
+					'id'     => array( 'type' => 'integer', 'minimum' => 1, 'required' => true ),
+					'type'   => array( 'type' => 'string', 'required' => true ),
+					'status' => array( 'type' => 'string', 'enum' => array( 'draft', 'publish' ), 'required' => true ),
+					'parent' => array( 'type' => 'integer', 'minimum' => 0, 'default' => 0 ),
 				),
 			)
 		);
@@ -179,7 +286,7 @@ add_action(
 					}
 
 					$items = array_map(
-						static function ( WP_Post $post ) use ( $parents_with_children ): array {
+						static function ( WP_Post $post ) use ( $parents_with_children, $post_type ): array {
 							return array(
 								'id'       => $post->ID,
 								'title'    => get_the_title( $post ),
@@ -190,6 +297,8 @@ add_action(
 								'parent'   => (int) $post->post_parent,
 								'parent_title' => $post->post_parent ? get_the_title( $post->post_parent ) : '',
 								'has_children' => in_array( $post->ID, $parents_with_children, true ),
+								'ancestors' => $post_type->hierarchical ? array_map( 'intval', get_post_ancestors( $post ) ) : array(),
+								'can_edit' => current_user_can( 'edit_post', $post->ID ),
 								'can_delete' => current_user_can( 'delete_post', $post->ID ),
 							);
 						},
@@ -205,6 +314,8 @@ add_action(
 							'per_page' => $per_page,
 							'hierarchy' => $hierarchy,
 							'parent'   => $parent,
+							'can_create' => current_user_can( $post_type->cap->create_posts ),
+							'can_publish' => current_user_can( $post_type->cap->publish_posts ),
 						)
 					);
 				},
@@ -233,7 +344,7 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '1.1.0';
+		$version = '1.2.0';
 		$types   = array();
 		$hierarchical_types = array();
 		foreach ( get_post_types( array( 'show_in_rest' => true ), 'objects' ) as $post_type ) {
@@ -251,6 +362,7 @@ add_action(
 			'window.etchHubSortConfig = ' . wp_json_encode(
 				array(
 					'endpoint' => esc_url_raw( rest_url( 'etch-hub-sort/v1/posts' ) ),
+					'createEndpoint' => esc_url_raw( rest_url( 'etch-hub-sort/v1/posts/create' ) ),
 					'settingsEndpoint' => esc_url_raw( rest_url( 'etch-hub-sort/v1/settings' ) ),
 					'assetUrl' => esc_url_raw( $url . 'assets/' ),
 					'nonce'    => wp_create_nonce( 'wp_rest' ),

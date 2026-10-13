@@ -19,7 +19,8 @@
 .etch-hub-sort-hierarchy-tools { display: flex; align-items: center; gap: 0.5rem; }
 .etch-hub-sort-bulk { min-width: 6.5rem; }
 .etch-hub-sort-hierarchy-tools[hidden],
-.etch-hub-sort-hierarchy-tools .etch-hub-sort-button[hidden] { display: none !important; }
+.etch-hub-sort-hierarchy-tools .etch-hub-sort-button[hidden],
+.etch-hub-sort-new[hidden] { display: none !important; }
 .etch-hub-sort-search, .etch-hub-sort-size {
   border: 1px solid var(--e-border-color, #555);
   border-radius: var(--e-border-radius, 5px);
@@ -63,6 +64,87 @@
 }
 .etch-hub-sort-parent-label { color: var(--e-foreground-color-muted, #aaa); font-size: 0.85em; margin-top: 0.2rem; }
 .etch-hub-sort-child-title { box-shadow: inset 3px 0 0 oklch(0.72 0.08 164 / 0.55); }
+.etch-hub-sort-quick-edit {
+  margin-left: 0.75rem;
+  padding: 0.1rem 0.2rem;
+  border: 0;
+  background: transparent;
+  color: var(--e-success, #5ccc86);
+  font-size: 0.85em;
+}
+.etch-hub-sort-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(32rem, calc(100vw - 2rem));
+  max-width: none;
+  max-height: min(44rem, calc(100vh - 2rem));
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 0;
+  border: 1px solid #19191d;
+  border-radius: 16px;
+  background: #27272b;
+  color: #f3f3f4;
+  box-shadow: 0 18px 55px #000b, 0 2px 8px #0008;
+}
+.etch-hub-sort-dialog::backdrop { background: #000b; }
+.etch-hub-sort-edit-form { display: flex; flex-direction: column; gap: 1.1rem; padding: 1.5rem; }
+.etch-hub-sort-edit-form h2, .etch-hub-sort-edit-form p { margin: 0; }
+.etch-hub-sort-dialog-header { padding-bottom: 1rem; border-bottom: 1px solid #3b3b40; }
+.etch-hub-sort-dialog-header h2 { font-size: 1.25rem; line-height: 1.3; }
+.etch-hub-sort-dialog-header p { margin-top: 0.35rem; color: var(--e-foreground-color-muted, #aaa); line-height: 1.45; }
+.etch-hub-sort-edit-field { display: flex; flex-direction: column; gap: 0.4rem; }
+.etch-hub-sort-edit-form label, .etch-hub-sort-parent-label-heading { font-weight: 600; }
+.etch-hub-sort-parent-field > label { margin-top: 0.15rem; font-size: 0.9em; color: var(--e-foreground-color-muted, #aaa); font-weight: 400; }
+.etch-hub-sort-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #3b3b40;
+  border-radius: 8px;
+  background: #111113;
+  color: inherit;
+  font: inherit;
+  padding: 0.65rem 0.75rem;
+}
+.etch-hub-sort-edit-input:focus-visible { outline: 2px solid #8fc9ff; outline-offset: 2px; }
+.etch-hub-sort-parent-list {
+  height: 10rem;
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 0.35rem;
+  border: 1px solid #3b3b40;
+  border-radius: 8px;
+  background: #111113;
+  scrollbar-color: #55555a #111113;
+}
+.etch-hub-sort-parent-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.15rem;
+  box-sizing: border-box;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 400 !important;
+}
+.etch-hub-sort-parent-choice:hover { background: #303036; }
+.etch-hub-sort-parent-choice:has(input:checked) { background: #28433f; color: #e5fffb; }
+.etch-hub-sort-parent-choice:has(input:focus-visible) { outline: 2px solid #8fc9ff; outline-offset: -2px; }
+.etch-hub-sort-parent-choice input { flex: 0 0 auto; margin: 0; accent-color: #54ded1; }
+.etch-hub-sort-parent-choice span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.etch-hub-sort-parent-message, .etch-hub-sort-edit-message { color: var(--e-foreground-color-muted, #aaa); }
+.etch-hub-sort-parent-message { min-height: 1.25em; line-height: 1.25; }
+.etch-hub-sort-edit-message:empty { display: none; }
+.etch-hub-sort-dialog-actions { display: flex; gap: 0.6rem; padding-top: 1rem; border-top: 1px solid #3b3b40; }
+.etch-hub-sort-dialog-actions button { flex: 1; min-height: 2.5rem; border: 0; border-radius: 8px; background: #3d3d42; }
+.etch-hub-sort-dialog-actions button[type="submit"] { background: #54ded1; color: #10201e; font-weight: 600; }
+.etch-hub-sort-dialog-actions button:hover, .etch-hub-sort-dialog-actions button:focus-visible { filter: brightness(1.1); }
+.etch-hub-sort-notice { display: flex; align-items: center; flex-wrap: wrap; gap: 0.7rem; margin: 0.5rem 20px 0.5rem 0; padding: 0.65rem 0.8rem; border: 1px solid var(--e-success, #5ccc86); border-radius: 6px; background: oklch(0.72 0.06 164 / 0.1); }
+.etch-hub-sort-notice[hidden], .etch-hub-sort-native .etch-hub-sort-notice { display: none; }
+.etch-hub-sort-notice .etch-hub-sort-button { padding: 0.25rem 0.5rem; }
+.etch-hub-sort-notice-dismiss { margin-left: auto; }
 .etch-hub-sort-tree-id {
   display: flex;
   align-items: center;
