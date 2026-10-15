@@ -2,9 +2,10 @@
 /**
  * Plugin Name: Etch Content Hub Sort
  * Description: Adds search, full-result sorting, pagination, and hierarchy browsing to Etch's Content Hub.
- * Version: 1.7.5
+ * Version: 1.7.6
  * Requires at least: 5.9
  * Requires PHP: 8.1
+ * Update URI: https://github.com/stphnwlkr/etch-content-hub-sort
  * Author: Stephen Walker
  * License: GPLv3 or later
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -14,6 +15,8 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+require_once __DIR__ . '/includes/github-updates.php';
 
 /** Return the saved layout, including the earlier start/end switch. */
 function etch_hub_sort_actions_layout(): string {
@@ -821,7 +824,7 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '1.7.5';
+		$version = '1.7.6';
 		$types   = array();
 		$hierarchical_types = array();
 		$taxonomies = array();

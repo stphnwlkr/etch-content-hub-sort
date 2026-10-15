@@ -1,0 +1,44 @@
+name: Publish plugin release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@v4
+
+      - name: Validate and package the plugin
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          grep -Fq "Version: ${version}" etch-content-hub-sort.php
+          grep -Fq "Stable tag: ${version}" readme.txt
+          grep -Fq "\$version = '${version}';" etch-content-hub-sort.php
+          php -l etch-content-hub-sort.php
+          php -l includes/github-updates.php
+          php tests/updater-smoke.php
+          node --check assets/sort.js
+          git archive --format=zip --prefix=etch-content-hub-sort/ \
+            -o "etch-content-hub-sort-${version}.zip" HEAD -- \
+            etch-content-hub-sort.php includes assets readme.txt README.md LICENSE.txt uninstall.php
+          unzip -tq "etch-content-hub-sort-${version}.zip"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          gh release create "${RELEASE_TAG}" "etch-content-hub-sort-${version}.zip" \
+            --title "Etch Content Hub Sort ${version}" \
+            --generate-notes \
+            --verify-tag

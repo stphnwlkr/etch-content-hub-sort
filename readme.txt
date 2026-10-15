@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.7.5
+Stable tag: 1.7.6
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -32,6 +32,8 @@ Only users with appropriate WordPress capabilities can list, manage, or move ite
 2. Upload the etch-content-hub-sort ZIP in Plugins > Add New > Upload Plugin, then activate it.
 3. Open the Etch builder and its Content Hub. Use the Hub search and sort button in Etch's left settings bar to open this plugin's settings panel.
 
+Starting with version 1.7.6, WordPress checks this plugin's public GitHub Releases for updates. New versions appear on the Plugins screen and can be installed there or through WordPress automatic updates. Each release must include the installable, versioned plugin ZIP. Version 1.7.5 and older must be upgraded to 1.7.6 manually once to enable these update checks.
+
 == Frequently Asked Questions ==
 
 = Can I edit an item's content in the browse table? =
@@ -47,6 +49,11 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 1.7.6 =
+
+* Add native WordPress update notices and installation from published GitHub Releases.
+* Show GitHub release notes in the WordPress plugin details dialog.
 
 = 1.7.5 =
 
