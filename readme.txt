@@ -4,17 +4,21 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.2.2
+Stable tag: 1.7.5
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Adds search, sorting, pagination, and WordPress Trash actions to the Etch Content Hub.
+Adds search, sorting, pagination, and hierarchy browsing to posts and taxonomies in the Etch Content Hub.
 
 == Description ==
 
-This plugin adds a browse table to Etch's Content Hub. It searches and sorts across the full result set and offers 25, 50, or 100 items per page. An Etch table button opens the original Etch view for inline editing and new item creation. A separate Hub search and sort tab in Etch settings turns the feature on or off and offers four Actions layouts: both at the end (default), both at the start, Open after Title with Trash last, or Open first with Trash last.
+This plugin adds a browse table to Etch's Content Hub. It searches and sorts across the full result set and offers 25, 50, or 100 items per page. An Etch table button opens the original Etch view for inline editing and new item creation. A dedicated Hub search and sort panel turns the feature on or off, chooses the view used when the builder loads, chooses the initial sort column and direction, and sets the active heading's background and text colors. A view selected during a builder session stays active across content types and taxonomies until switched back or reloaded. The General section can hide its left sidebar shortcut while search and sorting is active; settings remain available in the Content Hub toolbar. Its Buttons section offers individual background and text or icon colors, plus icon only, icon and text, or text only display, for buttons in the browse table. Color pairs must meet 4.5:1 text contrast. The General section also offers four Actions layouts: both at the end (default), both at the start, Open after Title with Trash last, or Open first with Trash last.
 
-The browse table also has a New item button with Draft or Publish status. For hierarchical content types, choose a parent while creating an item. Each existing item has Quick edit for changing its status and, for hierarchical types, its parent. The parent picker searches the full content type. WordPress permissions control which actions appear and which changes are accepted.
+Taxonomy terms have a browse table with Name, Slug, Description, Count, and Parent where applicable. Search, sorting, and pagination work across all terms. A separate setting chooses the initial taxonomy sort column and direction. Hierarchical taxonomies can be browsed as a tree, and flat search results identify each child's parent. New term and Quick edit let you set the name, slug, description, and parent. Delete permanently removes a term after confirmation. WordPress moves its children up one level. Terms do not have WordPress drafts or Trash.
+
+The Hierarchy section can customize parent and child row backgrounds, text, left borders, carets, and border width. Existing colors remain until custom hierarchy styling is enabled. Row text must meet 4.5:1 contrast, and borders and carets must meet 3:1 contrast against their row backgrounds.
+
+The browse table also has a New item button with Draft or Publish status. For hierarchical content types, choose a parent while creating an item. Each existing item has Quick edit for changing its title, slug, date, status, and, for hierarchical types, its parent. If both title and slug were blank, entering a title suggests a slug; WordPress generates the saved slug unless the user edits that suggestion. Date and time use the site's timezone; a future date can be saved as a draft, but cannot be set to Publish from this table. The parent picker searches the full content type. WordPress permissions control which actions appear and which changes are accepted.
 
 Hierarchical content types, such as Pages, open in a parent and child view. Expand a parent to load its children, or use the Open all / Close all control for every branch on the current page. Large branches have a Load more children control. Sorting applies within each level, while the main pagination counts top-level items. The Hierarchy button switches between the tree and flat list. Hierarchy controls appear only in the browse table. Search results appear as a flat list so matches at every depth remain visible; child results name their parent.
 
@@ -26,19 +30,111 @@ Only users with appropriate WordPress capabilities can list, manage, or move ite
 
 1. Install and activate Etch.
 2. Upload the etch-content-hub-sort ZIP in Plugins > Add New > Upload Plugin, then activate it.
-3. Open the Etch builder and its Content Hub. Use the Hub search and sort tab in Etch settings to enable or disable the feature.
+3. Open the Etch builder and its Content Hub. Use the Hub search and sort button in Etch's left settings bar to open this plugin's settings panel.
 
 == Frequently Asked Questions ==
 
 = Can I edit an item's content in the browse table? =
 
-Quick edit changes status and parent. Use the Open button to edit the item's content in Etch. The Etch table button returns to Etch's original inline editing and creation view.
+Quick edit changes title, slug, date, status, and parent. Use the Open button to edit the item's content in Etch. The Etch table button returns to Etch's original inline editing and creation view.
 
 = What happens when I select Trash? =
 
 The item moves to WordPress Trash after confirmation, subject to the user's delete permission. It can be restored through WordPress while it remains in Trash.
 
+= Can I restore a deleted taxonomy term? =
+
+No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
+
 == Changelog ==
+
+= 1.7.5 =
+
+* Suggest a slug when Quick edit begins with a blank title and slug, and let WordPress generate the saved slug from the new title.
+
+= 1.7.4 =
+
+* Add title, slug, and site-local date to post Quick edit.
+
+= 1.7.3 =
+
+* Keep the selected Etch table or Browse all view across content types and taxonomies for the current builder session. Use the saved default after a reload.
+
+= 1.7.2 =
+
+* Load the selected taxonomy directly in Browse all while Etch prepares its original table.
+* Show the selected taxonomy in the loading message and clear the previous taxonomy immediately when switching.
+
+= 1.7.1 =
+
+* Keep dialog headers and Create/Cancel buttons visible while item and term fields scroll; tighten dialog spacing.
+
+= 1.7.0 =
+
+* Create, quick edit, assign parents, and delete taxonomy terms from the browse table.
+* Add separate initial sort column and direction settings for taxonomies.
+* Validate taxonomy permissions and reject parent cycles before saving.
+
+= 1.6.0 =
+
+* Extend the browse table to visible taxonomies with full-result search, sorting, and pagination.
+* Add hierarchy browsing for hierarchical taxonomy terms and identify parents in flat results.
+* Keep term editing in Etch's original table until browse table controls are added.
+
+= 1.5.4 =
+
+* Sort complete, single-page result sets in the browser without another posts request.
+* Keep server-side sorting for paginated and in-flight results.
+
+= 1.5.3 =
+
+* Show button appearance choices in compact expandable rows.
+* Display color pickers only when custom colors are enabled for a button.
+
+= 1.5.2 =
+
+* Keep the button appearance preview within its panel so long icon-and-text labels cannot cover Save.
+
+= 1.5.1 =
+
+* Group Content Hub toolbar controls and widen the search field.
+* Arrange settings in compact groups and keep the Enable switch visible.
+* Let administrators hide the left settings shortcut while search and sorting is active.
+* Use the supplied tree and list icons for Hierarchy and Open all / Close all.
+
+= 1.5.0 =
+
+* Match the browse table's button dimensions and native action icons to Etch's controls.
+* Add a separate Hierarchy settings section for parent and child indicators.
+
+= 1.4.3 =
+
+* Match the browse table's button size, spacing, borders, and icon placement to Etch's controls.
+* Use Etch's native Trash and Open icons when its table provides them.
+
+= 1.4.2 =
+
+* Add a default Content Hub view setting: Etch table or Search and Sort.
+* Use the same Hub icon in the left settings rail and the Browse all switch button.
+* Center the settings rail icon and restore the Content Hub after closing settings opened from there.
+
+= 1.4.1 =
+
+* Keep sortable column labels and arrows outside button appearance settings.
+* Use Etch's Open and logo icons where available, and the supplied Quick edit icon.
+* Use Etch's button colors until custom colors are explicitly enabled.
+* Align the settings bar icon and refine the settings panel using Etch Toolkit's layout and tokens.
+
+= 1.4.0 =
+
+* Move settings into a dedicated panel opened from Etch's left settings bar or the browse table.
+* Add individual button color and label style options, with icon only as the default.
+* Arrange browse table controls in compact button groups.
+
+= 1.3.0 =
+
+* Add initial sort column and direction settings.
+* Add active sort heading background and text colors with a 4.5:1 contrast check.
 
 = 1.2.2 =
 

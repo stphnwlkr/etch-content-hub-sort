@@ -1,6 +1,6 @@
 # Etch Content Hub Sort
 
-Adds search, sorting, pagination, hierarchical browsing, quick editing of parent and status, item creation, and WordPress Trash actions to the Etch Content Hub. Etch 1.7.0 is the tested integration point. Install and usage details are in [readme.txt](readme.txt).
+Adds search, sorting, pagination, and hierarchical browsing for posts and taxonomy terms in the Etch Content Hub. Post rows support quick editing, item creation, and WordPress Trash. Term rows support creation, quick editing, parent assignment, and permanent deletion. Etch 1.7.0 is the tested integration point. Install and usage details are in [readme.txt](readme.txt).
 
 ## Development
 

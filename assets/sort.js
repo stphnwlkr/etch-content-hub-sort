@@ -8,13 +8,43 @@
     ['id', __('ID', 'etch-content-hub-sort')], ['title', __('Title', 'etch-content-hub-sort')], ['slug', __('Slug', 'etch-content-hub-sort')],
     ['status', __('Status', 'etch-content-hub-sort')], ['created', __('Created', 'etch-content-hub-sort')], ['modified', __('Last Edited', 'etch-content-hub-sort')],
   ];
+  const termColumns = [
+    ['id', __('ID', 'etch-content-hub-sort')], ['title', __('Name', 'etch-content-hub-sort')],
+    ['slug', __('Slug', 'etch-content-hub-sort')], ['description', __('Description', 'etch-content-hub-sort')],
+    ['count', __('Count', 'etch-content-hub-sort')],
+  ];
   const states = new Map();
+  let sessionNative = config.defaultView === 'etch';
   let view = null;
+  let settingsManager = null;
   let scheduled = false;
+  let observedSelection = '';
   const sortIcons = {
     asc: 'arrow-up-03-stroke-sharp.svg',
     desc: 'arrow-down-03-stroke-sharp.svg',
     none: 'arrow-data-transfer-vertical-stroke-sharp.svg',
+  };
+  const contrastRatio = (background, foreground) => {
+    const luminance = hex => {
+      const channels = [1, 3, 5].map(offset => {
+        const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    };
+    const a = luminance(background);
+    const b = luminance(foreground);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+  const saveSettings = async values => {
+    const response = await fetch(config.settingsEndpoint, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.nonce },
+      body: JSON.stringify(values),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || __('Could not save setting.', 'etch-content-hub-sort'));
+    return data;
   };
 
   const element = (tag, className = '', text) => {
@@ -29,17 +59,116 @@
     node.addEventListener('click', callback);
     return node;
   };
+  const applyButtonStyle = node => {
+    const style = config.buttonStyles?.[node.dataset.buttonGroup];
+    if (!style) return;
+    node.dataset.display = style.display;
+    node.dataset.customColors = String(style.custom_colors);
+    if (style.custom_colors) {
+      node.style.setProperty('--etch-button-bg', style.background);
+      node.style.setProperty('--etch-button-text', style.text);
+    } else {
+      node.style.removeProperty('--etch-button-bg');
+      node.style.removeProperty('--etch-button-text');
+    }
+  };
+  const applyHierarchyStyle = root => {
+    const style = config.hierarchyStyle;
+    if (!style) return;
+    root.dataset.hierarchyStyle = String(style.enabled);
+    for (const [key, value] of Object.entries(style)) {
+      if (key === 'enabled') continue;
+      root.style.setProperty(`--etch-hub-${key.replaceAll('_', '-')}`, key === 'border_width' ? `${value}px` : value);
+    }
+  };
+  const appendNativeIcon = (node, selector) => {
+    const draw = () => {
+      if (node.querySelector('.etch-hub-sort-native-icon')) return true;
+      const source = document.querySelector(selector);
+      if (!source) return false;
+      const icon = element('span', 'etch-hub-sort-native-icon');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.appendChild(source.cloneNode(true));
+      node.appendChild(icon);
+      return true;
+    };
+    if (draw()) return;
+    const observer = new MutationObserver(() => {
+      if (draw() || !node.isConnected) observer.disconnect();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.setTimeout(() => observer.disconnect(), 10000);
+  };
+  const nativeActionIcons = new WeakMap();
+  const appendNativeActionIcon = (node, table, action) => {
+    if (!nativeActionIcons.has(table)) {
+      let icons = null;
+      const cells = table.querySelectorAll('.datagrid-cell:last-child');
+      for (const cell of cells) {
+        const buttons = cell.querySelectorAll('button');
+        if (buttons.length < 2) continue;
+        const trash = buttons[0].querySelector('svg');
+        const open = buttons[buttons.length - 1].querySelector('svg');
+        if (!trash || !open) continue;
+        icons = { trash, open };
+        break;
+      }
+      nativeActionIcons.set(table, icons);
+    }
+    const svg = nativeActionIcons.get(table)?.[action];
+    if (svg) {
+      const icon = element('span', 'etch-hub-sort-native-icon');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.appendChild(svg.cloneNode(true));
+      node.appendChild(icon);
+    }
+  };
+  const themedButton = (label, callback, className, group) => {
+    const node = button(label, callback, `${className} etch-hub-sort-themed`);
+    node.dataset.buttonGroup = group;
+    if (label) node.title = label;
+    applyButtonStyle(node);
+    return node;
+  };
+  const repaintButtons = () => {
+    if (view) for (const node of view.root.querySelectorAll('.etch-hub-sort-themed')) applyButtonStyle(node);
+  };
+  const syncSidebarShortcut = () => {
+    if (settingsManager?.trigger) settingsManager.trigger.hidden = config.enabled && !config.showSidebarIcon;
+  };
+  const openSettingsPanel = () => {
+    mountSettingsPanel();
+    if (!settingsManager) return;
+    settingsManager.returnToHub = settingsManager.pendingReturnToHub ?? !!document.querySelector('.content-hub__content');
+    settingsManager.pendingReturnToHub = null;
+    settingsManager.launch = document.activeElement;
+    settingsManager.hubButton = document.querySelector('.settings-bar__section.top > button[title="Content Hub"], .settings-bar__section.top > button[aria-label="Content Hub"]')
+      || document.querySelector('.settings-bar__section.top > button');
+    settingsManager.panel.hidden = false;
+    settingsManager.trigger?.setAttribute('aria-expanded', 'true');
+    settingsManager.back.focus();
+  };
   const selectedType = () => {
     const selected = document.querySelector('.content-hub__sidebar .content-hub-list__item--selected .content-hub-list__item-button');
-    return config.types[selected?.textContent?.trim()] || null;
+    const label = selected?.textContent?.trim();
+    if (!label) return null;
+    const section = selected.closest('.content-hub-list');
+    const sectionLabel = section?.querySelector('.content-hub-list__header')?.textContent?.trim() || '';
+    if (sectionLabel === 'Taxonomies' && config.taxonomies?.[label]) return { kind: 'term', type: config.taxonomies[label], label };
+    if (config.types[label]) return { kind: 'post', type: config.types[label], label };
+    if (config.taxonomies?.[label]) return { kind: 'term', type: config.taxonomies[label], label };
+    return null;
   };
-  const stateFor = type => {
-    if (!states.has(type)) states.set(type, {
-      search: '', sort: 'created', order: 'desc', page: 1,
-      perPage: 25, native: false, requestId: 0,
-      hierarchy: (config.hierarchicalTypes || []).includes(type),
+  const stateFor = (type, kind) => {
+    const key = `${kind}:${type}`;
+    if (!states.has(key)) states.set(key, {
+      search: '', sort: kind === 'term' ? config.termDefaultColumn : config.defaultColumn,
+      order: kind === 'term' ? config.termDefaultOrder : config.defaultOrder,
+      sortTouched: false, page: 1,
+      perPage: 25, native: sessionNative, requestId: 0,
+      hierarchy: (kind === 'term' ? config.hierarchicalTaxonomies : config.hierarchicalTypes || []).includes(type),
     });
-    return states.get(type);
+    return states.get(key);
   };
   const formatDate = value => {
     if (!value || value.startsWith('0000-00-00')) return '-';
@@ -50,16 +179,21 @@
   function syncMode(current) {
     const nativeLoading = current.state.native && current.state.refreshingNative;
     current.root.classList.toggle('etch-hub-sort-native', current.state.native);
-    current.table.hidden = !current.state.native || nativeLoading;
+    if (current.kind === 'term') {
+      if (current.nativeContainer) current.nativeContainer.hidden = !current.state.native || nativeLoading;
+    } else if (current.table) current.table.hidden = !current.state.native || nativeLoading;
     current.results.hidden = current.state.native;
     current.controls.hidden = current.state.native;
     if (current.hierarchyTools) current.hierarchyTools.hidden = current.state.native;
     current.newButton.hidden = current.state.native;
     current.nativeLoading.hidden = !nativeLoading;
     current.switchButton.disabled = nativeLoading;
-    current.switchButton.textContent = nativeLoading
+    const label = nativeLoading
       ? __('Updating Etch table…', 'etch-content-hub-sort')
       : current.state.native ? __('Browse all', 'etch-content-hub-sort') : __('Etch table', 'etch-content-hub-sort');
+    current.switchButton.querySelector('.etch-hub-sort-switch-label').textContent = label;
+    current.switchButton.setAttribute('aria-label', label);
+    current.switchButton.dataset.viewMode = current.state.native ? 'browse' : 'etch';
     current.switchButton.title = current.state.native
       ? __('Search, sort, and page through all items', 'etch-content-hub-sort')
       : __('Use Etch’s original table for inline editing and creating items', 'etch-content-hub-sort');
@@ -78,22 +212,45 @@
     const header = element('div', 'etch-hub-sort-dialog-header');
     const description = element('p', '', creating
       ? __('Create an item as a draft or publish it now.', 'etch-content-hub-sort')
-      : __('Update this item’s status and parent.', 'etch-content-hub-sort'));
+      : __('Update this item’s basic details without leaving the Hub.', 'etch-content-hub-sort'));
     header.append(heading, description);
     form.appendChild(header);
 
-    let titleInput;
-    if (creating) {
-      const titleLabel = element('label', '', __('Title', 'etch-content-hub-sort'));
-      titleInput = element('input', 'etch-hub-sort-edit-input');
-      titleInput.id = 'etch-hub-sort-edit-title';
-      titleLabel.htmlFor = titleInput.id;
-      titleInput.type = 'text';
-      titleInput.required = true;
-      titleInput.maxLength = 200;
-      const titleField = element('div', 'etch-hub-sort-edit-field');
-      titleField.append(titleLabel, titleInput);
-      form.appendChild(titleField);
+    const titleLabel = element('label', '', __('Title', 'etch-content-hub-sort'));
+    const titleInput = element('input', 'etch-hub-sort-edit-input');
+    titleInput.id = 'etch-hub-sort-edit-title';
+    titleLabel.htmlFor = titleInput.id;
+    titleInput.type = 'text';
+    titleInput.required = creating;
+    titleInput.maxLength = 200;
+    titleInput.value = item?.edit_title ?? '';
+    const titleField = element('div', 'etch-hub-sort-edit-field');
+    titleField.append(titleLabel, titleInput);
+    form.appendChild(titleField);
+
+    let slugInput;
+    let slugEdited = false;
+    let autoSlug = false;
+    if (!creating) {
+      const slugLabel = element('label', '', __('Slug', 'etch-content-hub-sort'));
+      slugInput = element('input', 'etch-hub-sort-edit-input');
+      slugInput.id = 'etch-hub-sort-edit-slug';
+      slugInput.type = 'text';
+      slugInput.maxLength = 200;
+      slugInput.value = item.slug || '';
+      autoSlug = !titleInput.value.trim() && !slugInput.value.trim();
+      if (autoSlug) {
+        const slugify = value => value.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()
+          .replace(/['’]/g, '').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
+        titleInput.addEventListener('input', () => {
+          if (!slugEdited) slugInput.value = slugify(titleInput.value);
+        });
+        slugInput.addEventListener('input', () => { slugEdited = true; });
+      }
+      slugLabel.htmlFor = slugInput.id;
+      const slugField = element('div', 'etch-hub-sort-edit-field');
+      slugField.append(slugLabel, slugInput);
+      form.appendChild(slugField);
     }
 
     const statusLabel = element('label', '', __('Status', 'etch-content-hub-sort'));
@@ -110,6 +267,22 @@
     const statusField = element('div', 'etch-hub-sort-edit-field');
     statusField.append(statusLabel, statusSelect);
     form.appendChild(statusField);
+
+    let dateInput;
+    if (!creating) {
+      const dateField = element('div', 'etch-hub-sort-edit-field');
+      const dateLabel = element('label', '', __('Date', 'etch-content-hub-sort'));
+      dateInput = element('input', 'etch-hub-sort-edit-input');
+      dateInput.id = 'etch-hub-sort-edit-date';
+      dateInput.type = 'datetime-local';
+      dateInput.step = '60';
+      dateInput.required = true;
+      dateInput.value = item.created?.slice(0, 16).replace(' ', 'T') || '';
+      dateLabel.htmlFor = dateInput.id;
+      const dateHelp = element('p', 'etch-hub-sort-edit-hint', sprintf(__('Site time: %s', 'etch-content-hub-sort'), config.siteTimezone));
+      dateField.append(dateLabel, dateInput, dateHelp);
+      form.appendChild(dateField);
+    }
 
     let parentList;
     let parentSearch;
@@ -197,13 +370,18 @@
     const save = element('button', 'etch-hub-sort-button', creating ? __('Create', 'etch-content-hub-sort') : __('Save', 'etch-content-hub-sort'));
     save.type = 'submit';
     actions.append(cancel, save);
-    form.append(message, actions);
+    const body = element('div', 'etch-hub-sort-dialog-body');
+    header.remove();
+    body.append(...form.children);
+    const footer = element('div', 'etch-hub-sort-dialog-footer');
+    footer.append(message, actions);
+    form.append(header, body, footer);
     dialog.appendChild(form);
     dialog.addEventListener('close', () => dialog.remove());
     dialog.addEventListener('cancel', event => { if (save.disabled) event.preventDefault(); });
     form.addEventListener('submit', async event => {
       event.preventDefault();
-      const title = titleInput?.value.trim();
+      const title = titleInput.value.trim();
       if (creating && !title) {
         titleInput.focus();
         return;
@@ -212,11 +390,18 @@
       cancel.disabled = true;
       message.textContent = creating ? __('Creating…', 'etch-content-hub-sort') : __('Saving…', 'etch-content-hub-sort');
       try {
+        const payload = { type: current.type, status: statusSelect.value, parent: hierarchical ? parentId : 0 };
+        if (creating) payload.title = title;
+        else {
+          if (titleInput.value !== (item.edit_title ?? '')) payload.title = title;
+          if ((!autoSlug || slugEdited) && slugInput.value.trim() !== (item.slug || '')) payload.slug = slugInput.value.trim();
+          if (dateInput.value !== item.created?.slice(0, 16).replace(' ', 'T')) payload.date = dateInput.value;
+        }
         const response = await fetch(creating ? config.createEndpoint : `${config.endpoint}/${item.id}`, {
           method: creating ? 'POST' : 'PATCH',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.nonce },
-          body: JSON.stringify({ type: current.type, title, status: statusSelect.value, parent: hierarchical ? parentId : 0 }),
+          body: JSON.stringify(payload),
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || __('Could not save the item.', 'etch-content-hub-sort'));
@@ -236,7 +421,154 @@
     current.root.appendChild(dialog);
     dialog.showModal();
     if (searchParents) searchParents();
-    (titleInput || parentSearch || statusSelect).focus();
+    titleInput.focus();
+  }
+
+  function showTermEdit(current, item = null) {
+    const creating = !item;
+    const hierarchical = (config.hierarchicalTaxonomies || []).includes(current.type);
+    const dialog = element('dialog', 'etch-hub-sort-dialog');
+    const form = element('form', 'etch-hub-sort-edit-form');
+    const heading = element('h2', '', creating ? __('New term', 'etch-content-hub-sort')
+      : sprintf(__('Quick edit: %s', 'etch-content-hub-sort'), item.title));
+    heading.id = 'etch-hub-sort-term-heading';
+    dialog.setAttribute('aria-labelledby', heading.id);
+    const header = element('div', 'etch-hub-sort-dialog-header');
+    header.append(heading, element('p', '', creating
+      ? __('Add a term to this taxonomy.', 'etch-content-hub-sort')
+      : __('Edit this term and its parent.', 'etch-content-hub-sort')));
+    form.appendChild(header);
+    const field = (label, value, tag = 'input') => {
+      const wrapper = element('div', 'etch-hub-sort-edit-field');
+      const caption = element('label', '', label);
+      const input = element(tag, 'etch-hub-sort-edit-input');
+      input.id = `etch-hub-sort-term-${label.toLowerCase().replace(/[^a-z]+/g, '-')}`;
+      caption.htmlFor = input.id;
+      input.value = value;
+      wrapper.append(caption, input);
+      form.appendChild(wrapper);
+      return input;
+    };
+    const name = field(__('Name', 'etch-content-hub-sort'), item?.title || '');
+    name.required = true;
+    name.maxLength = 200;
+    const slug = field(__('Slug', 'etch-content-hub-sort'), item?.slug || '');
+    slug.maxLength = 200;
+    const description = field(__('Description', 'etch-content-hub-sort'), item?.description || '', 'textarea');
+    description.rows = 3;
+
+    let parentId = item?.parent || 0;
+    let parentName = item?.parent_title || '';
+    if (hierarchical) {
+      const parentField = element('div', 'etch-hub-sort-edit-field etch-hub-sort-parent-field');
+      const parentLabel = element('span', 'etch-hub-sort-parent-label-heading', __('Parent', 'etch-content-hub-sort'));
+      parentLabel.id = 'etch-hub-sort-term-parent-label';
+      const searchLabel = element('label', '', __('Find a parent', 'etch-content-hub-sort'));
+      const parentSearch = element('input', 'etch-hub-sort-edit-input');
+      parentSearch.id = 'etch-hub-sort-term-parent-search';
+      parentSearch.type = 'search';
+      parentSearch.placeholder = __('Search terms…', 'etch-content-hub-sort');
+      searchLabel.htmlFor = parentSearch.id;
+      const parentList = element('div', 'etch-hub-sort-parent-list');
+      parentList.setAttribute('role', 'radiogroup');
+      parentList.setAttribute('aria-labelledby', parentLabel.id);
+      const parentMessage = element('p', 'etch-hub-sort-parent-message');
+      parentMessage.setAttribute('role', 'status');
+      parentField.append(parentLabel, searchLabel, parentSearch, parentList, parentMessage);
+      form.appendChild(parentField);
+      const choice = (id, title) => {
+        const label = element('label', 'etch-hub-sort-parent-choice');
+        const radio = element('input');
+        radio.type = 'radio';
+        radio.name = 'etch-hub-sort-term-parent';
+        radio.value = String(id);
+        radio.checked = id === parentId;
+        radio.addEventListener('change', () => {
+          if (radio.checked) { parentId = id; parentName = title; }
+        });
+        label.append(radio, element('span', '', title));
+        return label;
+      };
+      let requestId = 0;
+      const searchParents = async () => {
+        const id = ++requestId;
+        parentMessage.textContent = __('Loading parents…', 'etch-content-hub-sort');
+        const url = new URL(config.termsEndpoint);
+        for (const [key, value] of Object.entries({ type: current.type, search: parentSearch.value.trim(), sort: 'title', order: 'asc', page: 1, per_page: 50, hierarchy: false, parent_picker: true })) url.searchParams.set(key, value);
+        try {
+          const response = await fetch(url, { credentials: 'same-origin', headers: { 'X-WP-Nonce': config.nonce } });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || __('Could not load parents.', 'etch-content-hub-sort'));
+          if (id !== requestId || !dialog.isConnected) return;
+          parentList.replaceChildren(choice(0, __('No parent', 'etch-content-hub-sort')));
+          if (parentId && !data.items.some(candidate => candidate.id === parentId)) parentList.appendChild(choice(parentId, parentName || `#${parentId}`));
+          let matches = 0;
+          for (const candidate of data.items) {
+            if (candidate.id === item?.id || candidate.ancestors?.includes(item?.id) || (!candidate.can_edit && candidate.id !== parentId)) continue;
+            parentList.appendChild(choice(candidate.id, `${candidate.title} (#${candidate.id})`));
+            matches++;
+          }
+          parentMessage.textContent = data.pages > 1
+            ? __('Showing the first 50 matches. Search to narrow the list.', 'etch-content-hub-sort')
+            : matches ? '' : __('No matching parents.', 'etch-content-hub-sort');
+        } catch (error) {
+          if (id === requestId && dialog.isConnected) parentMessage.textContent = error.message || __('Could not load parents.', 'etch-content-hub-sort');
+        }
+      };
+      let timer;
+      parentSearch.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(searchParents, 250); });
+      dialog.addEventListener('close', () => { clearTimeout(timer); requestId++; });
+      // The dialog must be in the document before the parent list loads.
+      dialog.etchHubLoadParents = searchParents;
+    }
+
+    const message = element('p', 'etch-hub-sort-edit-message');
+    message.setAttribute('role', 'status');
+    const actions = element('div', 'etch-hub-sort-dialog-actions');
+    const cancel = button(__('Cancel', 'etch-content-hub-sort'), () => dialog.close());
+    const save = element('button', 'etch-hub-sort-button', creating ? __('Create', 'etch-content-hub-sort') : __('Save', 'etch-content-hub-sort'));
+    save.type = 'submit';
+    actions.append(cancel, save);
+    const body = element('div', 'etch-hub-sort-dialog-body');
+    header.remove();
+    body.append(...form.children);
+    const footer = element('div', 'etch-hub-sort-dialog-footer');
+    footer.append(message, actions);
+    form.append(header, body, footer);
+    dialog.appendChild(form);
+    dialog.addEventListener('close', () => dialog.remove());
+    dialog.addEventListener('cancel', event => { if (save.disabled) event.preventDefault(); });
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!name.value.trim()) { name.focus(); return; }
+      save.disabled = true;
+      cancel.disabled = true;
+      message.textContent = creating ? __('Creating…', 'etch-content-hub-sort') : __('Saving…', 'etch-content-hub-sort');
+      try {
+        const response = await fetch(creating ? config.termCreateEndpoint : `${config.termsEndpoint}/${item.id}`, {
+          method: creating ? 'POST' : 'PATCH', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.nonce },
+          body: JSON.stringify({ type: current.type, name: name.value.trim(), slug: slug.value.trim(), description: description.value, parent: hierarchical ? parentId : 0 }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || __('Could not save the term.', 'etch-content-hub-sort'));
+        dialog.close();
+        current.state.etchDirty = true;
+        if (view !== current) return;
+        showSaveNotice(current, creating
+          ? sprintf(__('Created "%s".', 'etch-content-hub-sort'), name.value.trim())
+          : __('Term saved.', 'etch-content-hub-sort'), null);
+        load(current);
+      } catch (error) {
+        message.textContent = error.message || __('Could not save the term.', 'etch-content-hub-sort');
+        save.disabled = false;
+        cancel.disabled = false;
+      }
+    });
+    current.root.appendChild(dialog);
+    dialog.showModal();
+    dialog.etchHubLoadParents?.();
+    name.focus();
   }
 
   function showSaveNotice(current, message, id) {
@@ -244,21 +576,58 @@
     const notice = current.notice;
     notice.replaceChildren();
     notice.appendChild(element('span', '', message));
-    const open = button(__('Open in Builder', 'etch-content-hub-sort'), async () => {
-      open.disabled = true;
-      try {
-        await window.etch.navigation.openPostAsync(id);
-      } catch (error) {
-        notice.querySelector('span').textContent = error.message || __('Could not open this item.', 'etch-content-hub-sort');
-        open.disabled = false;
-      }
-    });
-    const dismiss = button(__('Dismiss', 'etch-content-hub-sort'), () => {
+    if (current.kind !== 'term' && id) {
+      const open = themedButton(__('Open in Builder', 'etch-content-hub-sort'), async () => {
+        open.disabled = true;
+        try {
+          await window.etch.navigation.openPostAsync(id);
+        } catch (error) {
+          notice.querySelector('span').textContent = error.message || __('Could not open this item.', 'etch-content-hub-sort');
+          open.disabled = false;
+        }
+      }, '', 'notice');
+      appendNativeActionIcon(open, current.table, 'open');
+      notice.appendChild(open);
+    }
+    const dismiss = themedButton(__('Dismiss', 'etch-content-hub-sort'), () => {
       current.state.lastNotice = null;
       notice.hidden = true;
-    }, 'etch-hub-sort-notice-dismiss');
-    notice.append(open, dismiss);
+    }, 'etch-hub-sort-notice-dismiss', 'notice');
+    dismiss.dataset.noticeAction = 'dismiss';
+    notice.appendChild(dismiss);
     notice.hidden = false;
+  }
+
+  const sortLoadedItems = (items, key, order) => {
+    const direction = order === 'asc' ? 1 : -1;
+    const collator = new Intl.Collator(undefined, { sensitivity: 'base' });
+    return [...items].sort((a, b) => {
+      const left = String(a[key] ?? '');
+      const right = String(b[key] ?? '');
+      let result = ['id', 'count', 'parent'].includes(key) ? Number(a[key]) - Number(b[key])
+        : key === 'created' || key === 'modified' ? (left > right ? 1 : left < right ? -1 : 0)
+          : collator.compare(left, right);
+      if (result && key === 'status') return result * direction;
+      if (key === 'status') {
+        result = String(b.created ?? '').localeCompare(String(a.created ?? '')) || b.id - a.id;
+        return result;
+      }
+      return result * direction;
+    });
+  };
+
+  function sortLocallyOrLoad(current) {
+    const { state, data, dataQuery } = current;
+    const hierarchy = state.hierarchy && !state.search.trim();
+    if (data && dataQuery && current.results.getAttribute('aria-busy') !== 'true'
+      && data.page === 1 && state.page === 1 && data.total === data.items.length
+      && data.total <= state.perPage && dataQuery.search === state.search
+      && dataQuery.perPage === state.perPage && dataQuery.hierarchy === hierarchy) {
+      ++state.requestId;
+      renderRows(current, { ...data, items: sortLoadedItems(data.items, state.sort, state.order) });
+      return;
+    }
+    load(current);
   }
 
   function renderRows(current, data) {
@@ -279,10 +648,16 @@
     const hierarchy = !!data.hierarchy;
     const thead = element('thead');
     const headings = element('tr');
-    const splitActions = config.actionsLayout === 'split';
-    const openStart = config.actionsLayout === 'open_start';
+    const isTerm = current.kind === 'term';
+    const activeColumns = isTerm
+      ? ((config.hierarchicalTaxonomies || []).includes(current.type)
+        ? [...termColumns.slice(0, 3), ['parent', __('Parent', 'etch-content-hub-sort')], ...termColumns.slice(3)]
+        : termColumns)
+      : columns;
+    const splitActions = !isTerm && config.actionsLayout === 'split';
+    const openStart = !isTerm && config.actionsLayout === 'open_start';
     const separateActions = splitActions || openStart;
-    const actionsFirst = config.actionsLayout === 'start';
+    const actionsFirst = !isTerm && config.actionsLayout === 'start';
     const actionHeading = (label, single = false) => {
       const heading = element('th', `etch-hub-sort-actions-cell${single ? ' etch-hub-sort-action-single' : ''}`, label);
       heading.scope = 'col';
@@ -290,25 +665,25 @@
     };
     if (actionsFirst) headings.appendChild(actionHeading(__('Actions', 'etch-content-hub-sort')));
     if (openStart) headings.appendChild(actionHeading(__('Open', 'etch-content-hub-sort'), true));
-    for (const [key, label] of columns) {
-      const th = element('th');
-      th.scope = 'col';
+    for (const [key, label] of activeColumns) {
       const active = state.sort === key;
+      const th = element('th', active ? 'etch-hub-sort-active-heading' : '');
+      th.scope = 'col';
       th.setAttribute('aria-sort', active ? (state.order === 'asc' ? 'ascending' : 'descending') : 'none');
       const heading = button(label, () => {
         state.order = state.sort === key && state.order === 'asc' ? 'desc' : 'asc';
         state.sort = key;
+        state.sortTouched = true;
         state.page = 1;
         current.focusSort = key;
-        load(current);
+        sortLocallyOrLoad(current);
       }, 'etch-hub-sort-heading');
       heading.dataset.sort = key;
       heading.setAttribute('aria-label', active
         ? sprintf(__('Sort by %1$s, %2$s', 'etch-content-hub-sort'), label, state.order === 'asc' ? __('ascending', 'etch-content-hub-sort') : __('descending', 'etch-content-hub-sort'))
         : sprintf(__('Sort by %s', 'etch-content-hub-sort'), label));
-      const icon = element('img', 'etch-hub-sort-icon');
-      icon.src = `${config.assetUrl}${sortIcons[active ? state.order : 'none']}`;
-      icon.alt = '';
+      const icon = element('span', `etch-hub-sort-icon etch-hub-sort-icon-${active ? state.order : 'none'}`);
+      icon.setAttribute('aria-hidden', 'true');
       heading.appendChild(icon);
       th.appendChild(heading);
       headings.appendChild(th);
@@ -320,13 +695,14 @@
     table.appendChild(thead);
 
     const tbody = element('tbody');
-    const columnCount = columns.length + (separateActions ? 2 : 1);
+    const columnCount = activeColumns.length + (separateActions ? 2 : 1);
     const updateBulkButton = () => {
       if (!current.bulkButton) return;
       const canExpand = !!tbody.querySelector('.etch-hub-sort-expand[aria-expanded="false"], .etch-hub-sort-load-more');
       const hasExpanded = !!tbody.querySelector('.etch-hub-sort-expand[aria-expanded="true"]');
       const close = current.bulkOpening || (!canExpand && hasExpanded);
       current.bulkMode = close ? 'close' : 'open';
+      current.bulkButton.dataset.bulkMode = current.bulkMode;
       current.bulkButton.textContent = close ? __('Close all', 'etch-content-hub-sort') : __('Open all', 'etch-content-hub-sort');
       current.bulkButton.title = close
         ? __('Collapse every branch on this page', 'etch-content-hub-sort')
@@ -341,7 +717,7 @@
       marker.appendChild(markerCell);
       parentRow.parentNode.insertBefore(marker, nextPageRow || parentRow.nextSibling);
       try {
-        const url = new URL(config.endpoint);
+        const url = new URL(isTerm ? config.termsEndpoint : config.endpoint);
         for (const [key, value] of Object.entries({
           type: current.type, search: '', sort: state.sort, order: state.order,
           page, per_page: state.perPage, hierarchy: true, parent: parentItem.id,
@@ -362,9 +738,9 @@
           const cell = element('td');
           cell.colSpan = columnCount;
           cell.style.setProperty('--etch-hub-depth', depth);
-          cell.appendChild(button(__('Load more children', 'etch-content-hub-sort'), () => {
+          cell.appendChild(themedButton(__('Load more children', 'etch-content-hub-sort'), () => {
             moreRow.etchHubChildrenPromise = loadChildren(parentRow, parentItem, page + 1, depth, moreRow);
-          }, 'etch-hub-sort-load-more'));
+          }, 'etch-hub-sort-load-more', 'load_more'));
           moreRow.appendChild(cell);
           last.after(moreRow);
         }
@@ -377,7 +753,7 @@
             const expand = parentRow.querySelector('.etch-hub-sort-expand');
             expand?.setAttribute('aria-expanded', 'false');
             if (expand) {
-              expand.textContent = '▸';
+              expand.textContent = __('Expand', 'etch-content-hub-sort');
               expand.setAttribute('aria-label', sprintf(__('Show children of %s', 'etch-content-hub-sort'), parentItem.title || `#${parentItem.id}`));
             }
           }
@@ -396,20 +772,21 @@
         if (depth) row.classList.add('etch-hub-sort-tree-child');
         if (item.has_children) row.classList.add('etch-hub-sort-tree-parent');
       }
-      for (const [key] of columns) {
+      for (const [key] of activeColumns) {
         const value = key === 'id' ? `#${item.id}`
+          : key === 'parent' ? item.parent_title || (item.parent ? `#${item.parent}` : '—')
           : key === 'created' || key === 'modified' ? formatDate(item[key])
-          : item[key] || '';
+          : item[key] ?? '';
         const cell = element('td', `etch-hub-sort-cell-${key}`);
         if (key === 'status') cell.appendChild(element('span', `etch-hub-sort-status etch-hub-sort-status-${item.status}`, value));
         else if (key === 'id' && hierarchy) {
           const id = element('div', 'etch-hub-sort-tree-id');
           id.style.setProperty('--etch-hub-depth', depth);
           if (item.has_children) {
-            const expand = button('▸', () => {
+            const expand = themedButton(__('Expand', 'etch-content-hub-sort'), () => {
               const opened = expand.getAttribute('aria-expanded') === 'true';
               expand.setAttribute('aria-expanded', String(!opened));
-              expand.textContent = opened ? '▸' : '▾';
+              expand.textContent = opened ? __('Expand', 'etch-content-hub-sort') : __('Collapse', 'etch-content-hub-sort');
               expand.setAttribute('aria-label', sprintf(opened
                 ? __('Show children of %s', 'etch-content-hub-sort')
                 : __('Hide children of %s', 'etch-content-hub-sort'), item.title || `#${item.id}`));
@@ -422,7 +799,7 @@
                 }
                 updateBulkButton();
               } else row.etchHubChildrenPromise = loadChildren(row, item, 1, depth + 1);
-            }, 'etch-hub-sort-expand');
+            }, 'etch-hub-sort-expand', 'expand');
             expand.setAttribute('aria-expanded', 'false');
             expand.setAttribute('aria-label', sprintf(__('Show children of %s', 'etch-content-hub-sort'), item.title || `#${item.id}`));
             id.appendChild(expand);
@@ -436,12 +813,53 @@
           cell.appendChild(element('div', '', value));
           cell.appendChild(element('div', 'etch-hub-sort-parent-label', sprintf(__('Child of %s', 'etch-content-hub-sort'), item.parent_title || `#${item.parent}`)));
           cell.title = sprintf(__('%1$s — child of %2$s', 'etch-content-hub-sort'), value, item.parent_title || `#${item.parent}`);
-        } else { cell.textContent = value; cell.title = value; }
+        } else { cell.textContent = value; cell.title = String(value); }
         row.appendChild(cell);
+      }
+      if (isTerm) {
+        if (item.can_edit) {
+          const titleCell = row.querySelector('.etch-hub-sort-cell-title');
+          const edit = themedButton(__('Quick edit', 'etch-content-hub-sort'), () => showTermEdit(current, item), 'etch-hub-sort-quick-edit', 'quick_edit');
+          edit.setAttribute('aria-label', sprintf(__('Quick edit %s', 'etch-content-hub-sort'), item.title));
+          (titleCell.firstElementChild || titleCell).appendChild(edit);
+        }
+        const actions = element('td', 'etch-hub-sort-actions-cell');
+        const buttons = element('div', 'etch-hub-sort-action-buttons');
+        if (item.can_delete) {
+          const remove = themedButton(__('Delete', 'etch-content-hub-sort'), async () => {
+            const warning = item.has_children
+              ? sprintf(__('Permanently delete "%s"? Its child terms will move up one level. This cannot be undone.', 'etch-content-hub-sort'), item.title)
+              : sprintf(__('Permanently delete "%s"? This cannot be undone.', 'etch-content-hub-sort'), item.title);
+            if (!window.confirm(warning)) return;
+            remove.disabled = true;
+            current.message.textContent = __('Deleting…', 'etch-content-hub-sort');
+            try {
+              const url = new URL(`${config.termsEndpoint}/${item.id}`);
+              url.searchParams.set('type', current.type);
+              const response = await fetch(url, { method: 'DELETE', credentials: 'same-origin', headers: { 'X-WP-Nonce': config.nonce } });
+              const result = await response.json();
+              if (!response.ok) throw new Error(result.message || __('Could not delete the term.', 'etch-content-hub-sort'));
+              state.etchDirty = true;
+              if (view !== current) return;
+              if (depth === 0 && data.items.length === 1 && state.page > 1) state.page--;
+              showSaveNotice(current, sprintf(__('Deleted "%s".', 'etch-content-hub-sort'), item.title), null);
+              load(current);
+            } catch (error) {
+              remove.disabled = false;
+              current.message.textContent = error.message || __('Could not delete the term.', 'etch-content-hub-sort');
+            }
+          }, 'etch-hub-sort-trash', 'trash');
+          remove.setAttribute('aria-label', sprintf(__('Permanently delete %s', 'etch-content-hub-sort'), item.title));
+          remove.title = __('Permanently delete term', 'etch-content-hub-sort');
+          buttons.appendChild(remove);
+        }
+        actions.appendChild(buttons);
+        row.appendChild(actions);
+        return row;
       }
       if (item.can_edit) {
         const titleCell = row.querySelector('.etch-hub-sort-cell-title');
-        const edit = button(__('Quick edit', 'etch-content-hub-sort'), () => showQuickEdit(current, item), 'etch-hub-sort-quick-edit');
+        const edit = themedButton(__('Quick edit', 'etch-content-hub-sort'), () => showQuickEdit(current, item), 'etch-hub-sort-quick-edit', 'quick_edit');
         edit.setAttribute('aria-label', sprintf(__('Quick edit %s', 'etch-content-hub-sort'), item.title || `#${item.id}`));
         (titleCell.firstElementChild || titleCell).appendChild(edit);
       }
@@ -449,7 +867,7 @@
       const actionButtons = element('div', 'etch-hub-sort-action-buttons');
       const trashActions = separateActions ? element('td', 'etch-hub-sort-actions-cell etch-hub-sort-action-single') : null;
       const trashButtons = separateActions ? element('div', 'etch-hub-sort-action-buttons') : null;
-      const open = button('↗', async () => {
+      const open = themedButton(__('Open', 'etch-content-hub-sort'), async () => {
         open.disabled = true;
         try {
           if (!window.etch?.navigation?.openPostAsync) throw new Error(__('Etch navigation is unavailable.', 'etch-content-hub-sort'));
@@ -458,12 +876,13 @@
           current.message.textContent = error.message || __('Could not open this item.', 'etch-content-hub-sort');
           open.disabled = false;
         }
-      }, 'etch-hub-sort-open');
+      }, 'etch-hub-sort-open', 'open');
+      appendNativeActionIcon(open, current.table, 'open');
       open.setAttribute('aria-label', sprintf(__('Open %s in Builder', 'etch-content-hub-sort'), item.title || `#${item.id}`));
       open.title = __('Open in Builder', 'etch-content-hub-sort');
       actionButtons.appendChild(open);
       if (item.can_delete) {
-        const trash = button('', async () => {
+        const trash = themedButton(__('Trash', 'etch-content-hub-sort'), async () => {
           const name = item.title || `#${item.id}`;
           if (!window.confirm(sprintf(__('Move “%s” to WordPress Trash?', 'etch-content-hub-sort'), name))) return;
           trash.disabled = true;
@@ -487,11 +906,8 @@
             trash.disabled = false;
             current.message.textContent = error.message || __('Could not move this item to Trash.', 'etch-content-hub-sort');
           }
-        }, 'etch-hub-sort-trash');
-        const trashIcon = element('img', 'etch-hub-sort-trash-icon');
-        trashIcon.src = `${config.assetUrl}etch-trash.svg`;
-        trashIcon.alt = '';
-        trash.appendChild(trashIcon);
+        }, 'etch-hub-sort-trash', 'trash');
+        appendNativeActionIcon(trash, current.table, 'trash');
         trash.setAttribute('aria-label', sprintf(__('Move %s to Trash', 'etch-content-hub-sort'), item.title || `#${item.id}`));
         trash.title = __('Move to WordPress Trash', 'etch-content-hub-sort');
         (trashButtons || actionButtons).appendChild(trash);
@@ -554,9 +970,11 @@
     results.appendChild(scroller);
 
     const paging = element('div', 'etch-hub-sort-paging');
-    const previous = button(__('Previous', 'etch-content-hub-sort'), () => { state.page--; load(current); });
+    const previous = themedButton(__('Previous', 'etch-content-hub-sort'), () => { state.page--; load(current); }, '', 'pagination');
+    previous.dataset.pageDirection = 'previous';
     previous.disabled = data.page <= 1;
-    const next = button(__('Next', 'etch-content-hub-sort'), () => { state.page++; load(current); });
+    const next = themedButton(__('Next', 'etch-content-hub-sort'), () => { state.page++; load(current); }, '', 'pagination');
+    next.dataset.pageDirection = 'next';
     next.disabled = data.page >= data.pages;
     paging.append(previous, element('span', '', sprintf(__('Page %1$d of %2$d', 'etch-content-hub-sort'), data.page, Math.max(1, data.pages))), next);
     results.appendChild(paging);
@@ -574,19 +992,23 @@
     if (current.state.native) return;
     const { state } = current;
     const requestId = ++state.requestId;
-    const url = new URL(config.endpoint);
+    const dataQuery = { search: state.search, perPage: state.perPage, hierarchy: state.hierarchy && !state.search.trim() };
+    const url = new URL(current.kind === 'term' ? config.termsEndpoint : config.endpoint);
     for (const [key, value] of Object.entries({
       type: current.type, search: state.search, sort: state.sort,
       order: state.order, page: state.page, per_page: state.perPage,
       hierarchy: state.hierarchy && !state.search.trim(), parent: 0,
     })) url.searchParams.set(key, value);
-    current.message.textContent = __('Loading…', 'etch-content-hub-sort');
+    current.message.textContent = current.kind === 'term'
+      ? sprintf(__('Loading %s…', 'etch-content-hub-sort'), current.label)
+      : __('Loading…', 'etch-content-hub-sort');
     current.results.setAttribute('aria-busy', 'true');
     try {
       const response = await fetch(url, { credentials: 'same-origin', headers: { 'X-WP-Nonce': config.nonce } });
       const data = await response.json();
       if (requestId !== state.requestId || view !== current) return;
       if (!response.ok) throw new Error(data.message || __('Could not load items.', 'etch-content-hub-sort'));
+      current.dataQuery = dataQuery;
       renderRows(current, data);
     } catch (error) {
       if (requestId !== state.requestId || view !== current) return;
@@ -595,9 +1017,13 @@
     }
   }
 
-  function mount(table, type) {
-    const state = stateFor(type);
+  function mount(table, type, kind, content, nativeContainer, label) {
+    const state = stateFor(type, kind);
+    state.native = sessionNative;
     const root = element('section', 'etch-hub-sort');
+    root.style.setProperty('--etch-hub-active-bg', config.activeBg);
+    root.style.setProperty('--etch-hub-active-text', config.activeText);
+    applyHierarchyStyle(root);
     root.setAttribute('aria-label', __('Content Hub search and sorting', 'etch-content-hub-sort'));
     const bar = element('div', 'etch-hub-sort-bar');
     const controls = element('div', 'etch-hub-sort-controls');
@@ -617,18 +1043,18 @@
     const message = element('span', 'etch-hub-sort-message');
     message.setAttribute('role', 'status');
     controls.append(search, message, size);
-    const supportsHierarchy = (config.hierarchicalTypes || []).includes(type);
+    const supportsHierarchy = (kind === 'term' ? config.hierarchicalTaxonomies : config.hierarchicalTypes || []).includes(type);
     const hierarchyTools = supportsHierarchy ? element('div', 'etch-hub-sort-hierarchy-tools') : null;
-    const hierarchyButton = supportsHierarchy ? button(__('Hierarchy', 'etch-content-hub-sort'), () => {
+    const hierarchyButton = supportsHierarchy ? themedButton(__('Hierarchy', 'etch-content-hub-sort'), () => {
       state.hierarchy = !state.hierarchy;
       state.page = 1;
       syncHierarchy();
       load(current);
-    }, 'etch-hub-sort-hierarchy') : null;
-    const bulkButton = supportsHierarchy ? button(__('Open all', 'etch-content-hub-sort'), () => {
+    }, 'etch-hub-sort-hierarchy', 'hierarchy') : null;
+    const bulkButton = supportsHierarchy ? themedButton(__('Open all', 'etch-content-hub-sort'), () => {
       if (current.bulkMode === 'close') current.closeAll?.();
       else current.openAll?.();
-    }, 'etch-hub-sort-bulk') : null;
+    }, 'etch-hub-sort-bulk', 'bulk') : null;
     const syncHierarchy = () => {
       if (!hierarchyButton) return;
       hierarchyButton.setAttribute('aria-pressed', String(state.hierarchy));
@@ -641,29 +1067,41 @@
       if (!showBulk) bulkButton.disabled = true;
     };
     syncHierarchy();
-    const switchButton = button('', async () => {
+    const switchButton = themedButton('', async () => {
       if (state.native) {
         state.native = false;
+        sessionNative = false;
         syncMode(current);
         load(current);
         return;
       }
       const refresh = window.etch?.navigation?.listPostsAsync;
-      if (state.etchDirty && typeof refresh !== 'function') {
+      if (state.etchDirty && kind === 'post' && typeof refresh !== 'function') {
         current.message.textContent = __('Etch table refresh is unavailable. Browse all is current.', 'etch-content-hub-sort');
         return;
       }
       state.native = true;
+      sessionNative = true;
       state.refreshingNative = !!state.etchDirty;
       syncMode(current);
       if (state.refreshingNative) {
         let refreshed = false;
         try {
-          await refresh(current.type);
+          if (kind === 'term') {
+            const selectedButton = document.querySelector('.content-hub__sidebar .content-hub-list__item--selected .content-hub-list__item-button');
+            const otherButton = [...document.querySelectorAll('.content-hub__sidebar .content-hub-list__item:not(.content-hub-list__item--selected) .content-hub-list__item-button')]
+              .find(node => node !== selectedButton);
+            if (!selectedButton || !otherButton) throw new Error(__('Could not refresh Etch terms.', 'etch-content-hub-sort'));
+            otherButton.click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            selectedButton.click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } else await refresh(current.type);
           refreshed = true;
           state.etchDirty = false;
         } catch {
           state.native = false;
+          sessionNative = false;
         }
         state.refreshingNative = false;
         if (view?.state === state && view.type === current.type) {
@@ -671,17 +1109,26 @@
           if (!refreshed) view.message.textContent = __('Etch table could not be refreshed. Try again.', 'etch-content-hub-sort');
         }
       }
-    }, 'etch-hub-sort-switch');
-    const newButton = button(__('New item', 'etch-content-hub-sort'), () => showQuickEdit(current), 'etch-hub-sort-new');
+    }, 'etch-hub-sort-switch', 'view');
+    switchButton.appendChild(element('span', 'etch-hub-sort-switch-label'));
+    appendNativeIcon(switchButton, '.settings-bar__section.etch-logo svg');
+    const newButton = themedButton(kind === 'term' ? __('New term', 'etch-content-hub-sort') : __('New item', 'etch-content-hub-sort'),
+      () => kind === 'term' ? showTermEdit(current) : showQuickEdit(current), 'etch-hub-sort-new', 'new');
+    const settingsButton = config.canManage ? themedButton(__('Hub settings', 'etch-content-hub-sort'), openSettingsPanel, 'etch-hub-sort-settings-launch', 'settings') : null;
     newButton.disabled = true;
     bar.append(controls);
     if (hierarchyTools) {
       bulkButton.title = __('Expand every branch on this page', 'etch-content-hub-sort');
       bulkButton.disabled = true;
       hierarchyTools.append(hierarchyButton, bulkButton);
-      bar.appendChild(hierarchyTools);
     }
-    bar.append(newButton, switchButton);
+    const toolbarActions = element('div', 'etch-hub-sort-toolbar-actions');
+    toolbarActions.setAttribute('role', 'group');
+    toolbarActions.setAttribute('aria-label', __('Content Hub actions', 'etch-content-hub-sort'));
+    if (hierarchyTools) toolbarActions.appendChild(hierarchyTools);
+    if (settingsButton) toolbarActions.appendChild(settingsButton);
+    toolbarActions.append(switchButton, newButton);
+    bar.appendChild(toolbarActions);
     const notice = element('div', 'etch-hub-sort-notice');
     notice.setAttribute('role', 'status');
     notice.hidden = true;
@@ -690,8 +1137,9 @@
     nativeLoading.hidden = true;
     const results = element('div', 'etch-hub-sort-results');
     root.append(bar, notice, nativeLoading, results);
-    table.before(root);
-    const current = { table, type, state, root, controls, hierarchyTools, bulkButton, newButton, switchButton, message, notice, nativeLoading, results, search, syncHierarchy };
+    if (kind === 'term') content.insertBefore(root, nativeContainer || content.firstChild);
+    else table.before(root);
+    const current = { table, nativeContainer, type, kind, label, state, root, controls, hierarchyTools, bulkButton, newButton, switchButton, message, notice, nativeLoading, results, search, syncHierarchy };
     view = current;
     syncMode(current);
     if (state.lastNotice) showSaveNotice(current, state.lastNotice.message, state.lastNotice.id);
@@ -713,55 +1161,141 @@
   }
 
   function refresh() {
-    mountSettingsTab();
-    const type = selectedType();
-    const table = document.querySelector('.content-hub__content .datagrid-wrapper');
-    if (!config.enabled || !table || !type) {
+    mountSettingsPanel();
+    const selected = selectedType();
+    const content = document.querySelector('.content-hub__content');
+    const nativeContainer = selected?.kind === 'term' ? content?.querySelector('.taxonomy-terms-table') : null;
+    const table = selected?.kind === 'term'
+      ? nativeContainer?.querySelector('.raster-wrapper')
+      : content?.querySelector('.datagrid-wrapper');
+    if (!config.enabled || !content || !selected || (selected.kind === 'post' && !table)) {
       if (view) {
-        view.table.hidden = false;
+        if (view.kind === 'term') {
+          if (view.nativeContainer) view.nativeContainer.hidden = false;
+        } else if (view.table) view.table.hidden = false;
         view.root.remove();
         view = null;
       }
       return;
     }
-    const headers = Array.from(table.querySelectorAll('.datagrid-header > .datagrid-cell'));
-    if (headers.length !== 7) return;
-    if (view?.table === table && view.type === type) return;
+    if (selected.kind === 'post' && table.querySelectorAll('.datagrid-header > .datagrid-cell').length !== 7) return;
+    if (view?.type === selected.type && view.kind === selected.kind && view.root.isConnected) {
+      if (view.table !== table || view.nativeContainer !== nativeContainer) {
+        view.table = table;
+        view.nativeContainer = nativeContainer;
+        syncMode(view);
+      }
+      return;
+    }
     if (view) {
-      view.table.hidden = false;
+      if (view.kind === 'term') {
+        if (view.nativeContainer && selected.kind !== 'term') view.nativeContainer.hidden = false;
+      } else if (view.table) view.table.hidden = false;
       view.root.remove();
       view = null;
     }
-    mount(table, type);
+    mount(table, selected.type, selected.kind, content, nativeContainer, selected.label);
   }
 
-  function mountSettingsTab() {
-    if (!config.canManage) return;
-    const tabs = document.querySelector('.etch-settings-tabs');
-    const settingsPanel = document.querySelector('.etch-settings-panel');
-    const nativeContent = settingsPanel?.querySelector('.etch-settings-content.svelte-wgfud9');
-    const nativeButtons = settingsPanel?.querySelector('.etch-settings-buttons.svelte-wgfud9');
-    if (!tabs || !settingsPanel || !nativeContent || !nativeButtons || tabs.querySelector('.etch-hub-sort-settings-tab')) return;
-
-    const tab = element('button', 'etch-settings-tab svelte-wgfud9 etch-hub-sort-settings-tab');
-    tab.type = 'button';
-    const tabIcon = element('img', 'etch-hub-sort-settings-icon');
-    tabIcon.src = `${config.assetUrl}${sortIcons.none}`;
-    tabIcon.alt = '';
-    tab.append(tabIcon, element('span', 'etch-hub-sort-settings-label', __('Hub search and sort', 'etch-content-hub-sort')));
-
-    const content = element('div', 'etch-settings-content etch-hub-sort-settings-panel');
-    content.style.display = 'none';
+  function mountSettingsPanel() {
+    if (!config.canManage || settingsManager) return;
+    const panel = element('section', 'etch-hub-sort-manager');
+    panel.id = 'etch-hub-sort-manager';
+    panel.hidden = true;
+    panel.setAttribute('aria-label', __('Hub search and sort settings', 'etch-content-hub-sort'));
+    const sidebar = element('div', 'etch-hub-sort-manager-sidebar');
+    const header = element('div', 'etch-hub-sort-manager-header');
+    const back = button(__('Back', 'etch-content-hub-sort'), () => {
+      const returnToHub = settingsManager?.returnToHub;
+      const hubButton = settingsManager?.hubButton;
+      panel.hidden = true;
+      settingsManager?.trigger?.setAttribute('aria-expanded', 'false');
+      if (returnToHub && !document.querySelector('.content-hub__content')) hubButton?.click();
+      if (settingsManager) settingsManager.returnToHub = false;
+      const target = settingsManager?.launch?.isConnected && !settingsManager.launch.hidden ? settingsManager.launch : hubButton;
+      target?.focus();
+    }, 'etch-hub-sort-manager-back');
+    const title = element('h1', '', __('Hub search and sort', 'etch-content-hub-sort'));
+    header.append(back, title);
+    const nav = element('nav', 'etch-hub-sort-manager-nav');
+    nav.setAttribute('aria-label', __('Hub settings sections', 'etch-content-hub-sort'));
+    const generalTab = button(__('General', 'etch-content-hub-sort'), () => showSection('general'), 'etch-hub-sort-manager-nav-button');
+    const hierarchyTab = button(__('Hierarchy', 'etch-content-hub-sort'), () => showSection('hierarchy'), 'etch-hub-sort-manager-nav-button');
+    const buttonsTab = button(__('Buttons', 'etch-content-hub-sort'), () => showSection('buttons'), 'etch-hub-sort-manager-nav-button');
+    nav.append(generalTab, hierarchyTab, buttonsTab);
+    sidebar.append(header, nav);
+    const body = element('div', 'etch-hub-sort-manager-body');
+    const content = element('div', 'etch-hub-sort-settings-panel');
+    const hierarchyContent = element('div', 'etch-hub-sort-hierarchy-settings-panel');
+    const buttonContent = element('div', 'etch-hub-sort-button-settings-panel');
+    body.append(content, hierarchyContent, buttonContent);
+    panel.append(sidebar, body);
+    document.body.appendChild(panel);
+    const showSection = section => {
+      content.hidden = section !== 'general';
+      hierarchyContent.hidden = section !== 'hierarchy';
+      buttonContent.hidden = section !== 'buttons';
+      generalTab.setAttribute('aria-current', section === 'general' ? 'page' : 'false');
+      hierarchyTab.setAttribute('aria-current', section === 'hierarchy' ? 'page' : 'false');
+      buttonsTab.setAttribute('aria-current', section === 'buttons' ? 'page' : 'false');
+    };
+    settingsManager = { panel, back, launch: null, trigger: null };
+    showSection('general');
+    panel.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); back.click(); }
+      if (event.key === 's' && (event.metaKey || event.ctrlKey)) event.stopPropagation();
+    });
+    panel.addEventListener('keyup', event => event.stopPropagation());
+    let attempts = 0;
+    const addToSettingsBar = window.setInterval(() => {
+      const api = window.etchControls?.builder?.settingsBar?.bottom;
+      const bar = document.querySelector('.settings-bar__section.bottom');
+      if (!api || !bar?.querySelector('button')) {
+        if (++attempts > 120) window.clearInterval(addToSettingsBar);
+        return;
+      }
+      const before = new Set(bar.querySelectorAll('button'));
+      api.addBefore({ id: 'etch-hub-sort-settings', icon: 'settings', tooltip: __('Hub search and sort', 'etch-content-hub-sort'), callback: () => panel.hidden ? openSettingsPanel() : back.click() });
+      window.clearInterval(addToSettingsBar);
+      const observer = new MutationObserver(() => {
+        const trigger = [...bar.querySelectorAll('button')].find(node => !before.has(node));
+        if (!trigger) return;
+        observer.disconnect();
+        trigger.setAttribute('aria-label', __('Hub search and sort settings', 'etch-content-hub-sort'));
+        trigger.setAttribute('aria-controls', panel.id);
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.classList.add('etch-hub-sort-bar-trigger');
+        const rememberOrigin = () => {
+          settingsManager.pendingReturnToHub = !!document.querySelector('.content-hub__content');
+        };
+        trigger.addEventListener('pointerdown', rememberOrigin, { capture: true });
+        trigger.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') rememberOrigin();
+        }, { capture: true });
+        const drawIcon = () => {
+          if (trigger.querySelector('.etch-hub-sort-bar-icon')) return;
+          const icon = element('img', 'etch-hub-sort-bar-icon');
+          icon.src = `${config.assetUrl}add-to-list-stroke-rounded.svg`;
+          icon.alt = '';
+          trigger.appendChild(icon);
+        };
+        drawIcon();
+        new MutationObserver(drawIcon).observe(trigger, { childList: true, subtree: true });
+        settingsManager.trigger = trigger;
+        syncSidebarShortcut();
+      });
+      observer.observe(bar, { childList: true, subtree: true });
+    }, 250);
 
     const addSetting = ({ label, ariaLabel, description, key, configKey }) => {
       const row = element('div', 'settings-toggle svelte-2pz811 etch-hub-sort-setting');
       const wrapper = element('div', 'settings-toggle-input-wrapper svelte-2pz811');
       const name = element('span', 'settings-toggle-name svelte-2pz811', label);
-      const toggle = element('button', 'etch-builder-switch__root');
+      const toggle = element('button', 'etch-hub-sort-enable-switch');
       toggle.type = 'button';
       toggle.setAttribute('role', 'switch');
       toggle.setAttribute('aria-label', ariaLabel);
-      const thumb = element('span', 'etch-builder-switch__thumb');
+      const thumb = element('span', 'etch-hub-sort-enable-switch-thumb');
       toggle.appendChild(thumb);
       const help = element('p', 'settings-toggle-description svelte-2pz811', description);
       const status = element('span', 'etch-hub-sort-setting-status');
@@ -785,11 +1319,12 @@
           });
           const data = await response.json();
           if (!response.ok) throw new Error(data.message || __('Could not save setting.', 'etch-content-hub-sort'));
-          config.enabled = !!data.enabled;
+          config[configKey] = !!data[key];
           config.actionsLayout = data.actions_layout;
           paint();
           status.textContent = __('Saved', 'etch-content-hub-sort');
           if (key === 'enabled') refresh();
+          if (key === 'enabled' || key === 'show_sidebar_icon') syncSidebarShortcut();
           else if (view?.data && !view.state.native) renderRows(view, view.data);
         } catch (error) {
           status.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
@@ -800,13 +1335,54 @@
       wrapper.append(name, toggle);
       row.append(wrapper, help, status);
       content.appendChild(row);
+      return { row, name, toggle, help, status };
     };
-    addSetting({
+    const enableSetting = addSetting({
       label: __('Enable search and sorting', 'etch-content-hub-sort'),
       ariaLabel: __('Enable Content Hub search and sorting', 'etch-content-hub-sort'),
       description: __('Search, sort, and page through all content. Changes save immediately.', 'etch-content-hub-sort'),
       key: 'enabled', configKey: 'enabled',
     });
+    const sidebarSetting = addSetting({
+      label: __('Show settings shortcut in sidebar', 'etch-content-hub-sort'),
+      ariaLabel: __('Show Hub settings shortcut in the left sidebar', 'etch-content-hub-sort'),
+      description: __('Hide this shortcut to leave room for other add-ons. It stays available when search and sorting is off.', 'etch-content-hub-sort'),
+      key: 'show_sidebar_icon', configKey: 'showSidebarIcon',
+    });
+    const viewRow = element('div', 'etch-hub-sort-setting');
+    const viewWrapper = element('div', 'settings-toggle-input-wrapper svelte-2pz811');
+    const viewLabel = element('span', 'settings-toggle-name svelte-2pz811', __('Default view', 'etch-content-hub-sort'));
+    const viewSelect = element('select', 'etch-hub-sort-placement-select');
+    viewSelect.setAttribute('aria-label', __('Default Content Hub view', 'etch-content-hub-sort'));
+    for (const [value, label] of [
+      ['browse', __('Search and Sort', 'etch-content-hub-sort')],
+      ['etch', __('Etch table', 'etch-content-hub-sort')],
+    ]) {
+      const option = element('option', '', label);
+      option.value = value;
+      viewSelect.appendChild(option);
+    }
+    viewSelect.value = config.defaultView;
+    const viewHelp = element('p', 'settings-toggle-description svelte-2pz811', __('Used when the builder loads. A view you switch to stays active across content types until you switch back or reload.', 'etch-content-hub-sort'));
+    const viewStatus = element('span', 'etch-hub-sort-setting-status');
+    viewStatus.setAttribute('role', 'status');
+    viewSelect.addEventListener('change', async () => {
+      viewSelect.disabled = true;
+      viewStatus.textContent = __('Saving…', 'etch-content-hub-sort');
+      try {
+        const data = await saveSettings({ default_view: viewSelect.value });
+        config.defaultView = data.default_view;
+        viewStatus.textContent = __('Saved', 'etch-content-hub-sort');
+      } catch (error) {
+        viewSelect.value = config.defaultView;
+        viewStatus.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
+      } finally {
+        viewSelect.disabled = false;
+      }
+    });
+    viewWrapper.append(viewLabel, viewSelect);
+    viewRow.append(viewWrapper, viewHelp, viewStatus);
+    content.appendChild(viewRow);
     const placement = element('div', 'settings-toggle svelte-2pz811 etch-hub-sort-setting');
     const placementWrapper = element('div', 'settings-toggle-input-wrapper svelte-2pz811');
     const placementLabel = element('span', 'settings-toggle-name svelte-2pz811', __('Actions placement', 'etch-content-hub-sort'));
@@ -853,48 +1429,428 @@
     placement.append(placementWrapper, placementHelp, placementStatus);
     content.appendChild(placement);
 
-    const footer = element('div', 'etch-settings-buttons svelte-wgfud9 etch-hub-sort-settings-buttons');
-    footer.style.display = 'none';
-    const close = element('button', 'etch-builder-button etch-builder-button--icon-placement-before etch-builder-button--variant-ghost', __('Close', 'etch-content-hub-sort'));
-    close.type = 'button';
-    close.addEventListener('click', () => nativeButtons.querySelector('button')?.click());
-    footer.appendChild(close);
-
-    const deactivate = selectedTab => {
-      settingsPanel.classList.remove('etch-hub-sort-settings-active');
-      tab.classList.remove('etch-settings-tab--active');
-      content.style.display = 'none';
-      footer.style.display = 'none';
-      nativeButtons.style.display = '';
-      nativeContent.style.display = '';
-      selectedTab.classList.add('etch-settings-tab--active');
+    const defaultRow = element('div', 'etch-hub-sort-setting etch-hub-sort-default-setting');
+    const defaultLabel = element('span', 'settings-toggle-name svelte-2pz811', __('Initial sorting', 'etch-content-hub-sort'));
+    const defaultControls = element('div', 'etch-hub-sort-default-controls');
+    const columnSelect = element('select', 'etch-hub-sort-placement-select');
+    columnSelect.setAttribute('aria-label', __('Default sort column', 'etch-content-hub-sort'));
+    for (const [key, label] of columns) {
+      const option = element('option', '', label);
+      option.value = key;
+      columnSelect.appendChild(option);
+    }
+    columnSelect.value = config.defaultColumn;
+    const orderSelect = element('select', 'etch-hub-sort-placement-select');
+    orderSelect.setAttribute('aria-label', __('Default sort direction', 'etch-content-hub-sort'));
+    for (const [key, label] of [
+      ['asc', __('Ascending', 'etch-content-hub-sort')],
+      ['desc', __('Descending', 'etch-content-hub-sort')],
+    ]) {
+      const option = element('option', '', label);
+      option.value = key;
+      orderSelect.appendChild(option);
+    }
+    orderSelect.value = config.defaultOrder;
+    const defaultHelp = element('p', 'settings-toggle-description svelte-2pz811', __('Used when a content type is first opened. Clicking a column header still sorts that view.', 'etch-content-hub-sort'));
+    const defaultStatus = element('span', 'etch-hub-sort-setting-status');
+    defaultStatus.setAttribute('role', 'status');
+    const saveDefault = async () => {
+      columnSelect.disabled = orderSelect.disabled = true;
+      defaultStatus.textContent = __('Saving…', 'etch-content-hub-sort');
+      try {
+        const data = await saveSettings({ default_column: columnSelect.value, default_order: orderSelect.value });
+        config.defaultColumn = data.default_column;
+        config.defaultOrder = data.default_order;
+        for (const [key, state] of states) {
+          if (!key.startsWith('post:') || state.sortTouched) continue;
+          state.sort = config.defaultColumn;
+          state.order = config.defaultOrder;
+          state.page = 1;
+        }
+        if (view?.kind === 'post' && !view.state.sortTouched && !view.state.native) sortLocallyOrLoad(view);
+        defaultStatus.textContent = __('Saved', 'etch-content-hub-sort');
+      } catch (error) {
+        columnSelect.value = config.defaultColumn;
+        orderSelect.value = config.defaultOrder;
+        defaultStatus.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
+      } finally {
+        columnSelect.disabled = orderSelect.disabled = false;
+      }
     };
-    tabs.addEventListener('click', event => {
-      const selectedTab = event.target.closest('.etch-settings-tab');
-      if (selectedTab && selectedTab !== tab) deactivate(selectedTab);
-    }, true);
-    tab.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      settingsPanel.classList.add('etch-hub-sort-settings-active');
-      for (const item of tabs.querySelectorAll('.etch-settings-tab')) item.classList.remove('etch-settings-tab--active');
-      tab.classList.add('etch-settings-tab--active');
-      for (const item of settingsPanel.querySelectorAll('.etch-settings-content')) item.style.display = 'none';
-      content.style.display = '';
-      nativeButtons.style.display = 'none';
-      footer.style.display = '';
-    });
-    tabs.appendChild(tab);
-    settingsPanel.insertBefore(content, nativeButtons);
-    settingsPanel.appendChild(footer);
+    columnSelect.addEventListener('change', saveDefault);
+    orderSelect.addEventListener('change', saveDefault);
+    defaultControls.append(columnSelect, orderSelect);
+    defaultRow.append(defaultLabel, defaultControls, defaultHelp, defaultStatus);
+    content.appendChild(defaultRow);
+
+    const termDefaultRow = element('div', 'etch-hub-sort-setting etch-hub-sort-default-setting');
+    const termDefaultLabel = element('span', 'settings-toggle-name svelte-2pz811', __('Initial taxonomy sorting', 'etch-content-hub-sort'));
+    const termDefaultControls = element('div', 'etch-hub-sort-default-controls');
+    const termColumnSelect = element('select', 'etch-hub-sort-placement-select');
+    termColumnSelect.setAttribute('aria-label', __('Default taxonomy sort column', 'etch-content-hub-sort'));
+    for (const [key, label] of termColumns) {
+      const option = element('option', '', label);
+      option.value = key;
+      termColumnSelect.appendChild(option);
+    }
+    termColumnSelect.value = config.termDefaultColumn;
+    const termOrderSelect = element('select', 'etch-hub-sort-placement-select');
+    termOrderSelect.setAttribute('aria-label', __('Default taxonomy sort direction', 'etch-content-hub-sort'));
+    for (const [key, label] of [['asc', __('Ascending', 'etch-content-hub-sort')], ['desc', __('Descending', 'etch-content-hub-sort')]]) {
+      const option = element('option', '', label);
+      option.value = key;
+      termOrderSelect.appendChild(option);
+    }
+    termOrderSelect.value = config.termDefaultOrder;
+    const termDefaultHelp = element('p', 'settings-toggle-description svelte-2pz811', __('Used when a taxonomy is first opened. Its column headings remain sortable.', 'etch-content-hub-sort'));
+    const termDefaultStatus = element('span', 'etch-hub-sort-setting-status');
+    termDefaultStatus.setAttribute('role', 'status');
+    const saveTermDefault = async () => {
+      termColumnSelect.disabled = termOrderSelect.disabled = true;
+      termDefaultStatus.textContent = __('Saving…', 'etch-content-hub-sort');
+      try {
+        const data = await saveSettings({ term_default_column: termColumnSelect.value, term_default_order: termOrderSelect.value });
+        config.termDefaultColumn = data.term_default_column;
+        config.termDefaultOrder = data.term_default_order;
+        for (const [key, state] of states) {
+          if (!key.startsWith('term:') || state.sortTouched) continue;
+          state.sort = config.termDefaultColumn;
+          state.order = config.termDefaultOrder;
+          state.page = 1;
+        }
+        if (view?.kind === 'term' && !view.state.sortTouched && !view.state.native) sortLocallyOrLoad(view);
+        termDefaultStatus.textContent = __('Saved', 'etch-content-hub-sort');
+      } catch (error) {
+        termColumnSelect.value = config.termDefaultColumn;
+        termOrderSelect.value = config.termDefaultOrder;
+        termDefaultStatus.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
+      } finally {
+        termColumnSelect.disabled = termOrderSelect.disabled = false;
+      }
+    };
+    termColumnSelect.addEventListener('change', saveTermDefault);
+    termOrderSelect.addEventListener('change', saveTermDefault);
+    termDefaultControls.append(termColumnSelect, termOrderSelect);
+    termDefaultRow.append(termDefaultLabel, termDefaultControls, termDefaultHelp, termDefaultStatus);
+    content.appendChild(termDefaultRow);
+
+    const colorRow = element('div', 'etch-hub-sort-setting etch-hub-sort-color-setting');
+    const colorHeading = element('span', 'settings-toggle-name svelte-2pz811', __('Active sort heading colors', 'etch-content-hub-sort'));
+    const colorControls = element('div', 'etch-hub-sort-color-controls');
+    const colorField = (id, label, value) => {
+      const field = element('label', 'etch-hub-sort-color-field');
+      const name = element('span', '', label);
+      const input = element('input', 'etch-hub-sort-color-input');
+      input.type = 'color';
+      input.id = id;
+      input.value = value;
+      const code = element('span', 'etch-hub-sort-color-code', value);
+      input.addEventListener('input', () => { code.textContent = input.value; updateColorPreview(); });
+      field.append(name, input, code);
+      return { field, input };
+    };
+    const background = colorField('etch-hub-active-bg', __('Background', 'etch-content-hub-sort'), config.activeBg);
+    const foreground = colorField('etch-hub-active-text', __('Text', 'etch-content-hub-sort'), config.activeText);
+    const preview = element('div', 'etch-hub-sort-color-preview', __('TITLE ↑', 'etch-content-hub-sort'));
+    const colorHelp = element('p', 'settings-toggle-description svelte-2pz811', __('Colors apply to the sorted column heading. Text contrast must be at least 4.5:1.', 'etch-content-hub-sort'));
+    const contrastStatus = element('span', 'etch-hub-sort-setting-status');
+    contrastStatus.setAttribute('role', 'status');
+    const saveColors = button(__('Save colors', 'etch-content-hub-sort'), async () => {
+      saveColors.disabled = true;
+      contrastStatus.textContent = __('Saving…', 'etch-content-hub-sort');
+      try {
+        const data = await saveSettings({ active_bg: background.input.value, active_text: foreground.input.value });
+        config.activeBg = data.active_bg;
+        config.activeText = data.active_text;
+        if (view) {
+          view.root.style.setProperty('--etch-hub-active-bg', config.activeBg);
+          view.root.style.setProperty('--etch-hub-active-text', config.activeText);
+        }
+        updateColorPreview();
+        contrastStatus.textContent = __('Saved', 'etch-content-hub-sort');
+      } catch (error) {
+        updateColorPreview();
+        contrastStatus.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
+      }
+    }, 'etch-hub-sort-save-colors');
+    function updateColorPreview() {
+      const ratio = contrastRatio(background.input.value, foreground.input.value);
+      preview.style.backgroundColor = background.input.value;
+      preview.style.color = foreground.input.value;
+      saveColors.disabled = ratio < 4.5 || (background.input.value === config.activeBg && foreground.input.value === config.activeText);
+      contrastStatus.textContent = ratio < 4.5
+        ? sprintf(__('Contrast %s:1 is too low. Choose at least 4.5:1.', 'etch-content-hub-sort'), ratio.toFixed(2))
+        : sprintf(__('Contrast %s:1', 'etch-content-hub-sort'), ratio.toFixed(2));
+    }
+    colorControls.append(background.field, foreground.field);
+    colorRow.append(colorHeading, colorControls, preview, colorHelp, contrastStatus, saveColors);
+    content.appendChild(colorRow);
+    updateColorPreview();
+
+    const arrangeSetting = (row, label, help, status, ...actions) => {
+      const copy = element('div', 'etch-hub-sort-setting-copy');
+      const controls = element('div', 'etch-hub-sort-setting-actions');
+      copy.append(label, help, status);
+      controls.append(...actions);
+      row.replaceChildren(copy, controls);
+    };
+    arrangeSetting(enableSetting.row, enableSetting.name, enableSetting.help, enableSetting.status, enableSetting.toggle);
+    arrangeSetting(sidebarSetting.row, sidebarSetting.name, sidebarSetting.help, sidebarSetting.status, sidebarSetting.toggle);
+    arrangeSetting(viewRow, viewLabel, viewHelp, viewStatus, viewSelect);
+    arrangeSetting(placement, placementLabel, placementHelp, placementStatus, placementSelect);
+    arrangeSetting(defaultRow, defaultLabel, defaultHelp, defaultStatus, defaultControls);
+    arrangeSetting(colorRow, colorHeading, colorHelp, contrastStatus, colorControls, preview, saveColors);
+    const generalHeading = element('div', 'etch-hub-sort-manager-intro');
+    generalHeading.appendChild(element('h2', '', __('General', 'etch-content-hub-sort')));
+    content.prepend(generalHeading);
+    const settingsGroup = (title, ...rows) => {
+      const section = element('section', 'etch-hub-sort-settings-group');
+      section.setAttribute('aria-label', title);
+      section.appendChild(element('h3', 'etch-hub-sort-settings-group-title', title));
+      const list = element('div', 'etch-hub-sort-settings-group-list');
+      list.append(...rows);
+      section.appendChild(list);
+      content.appendChild(section);
+    };
+    settingsGroup(__('Content Hub', 'etch-content-hub-sort'), enableSetting.row, viewRow, sidebarSetting.row);
+    settingsGroup(__('Table', 'etch-content-hub-sort'), placement, defaultRow);
+    settingsGroup(__('Appearance', 'etch-content-hub-sort'), colorRow);
+
+    const hierarchyIntro = element('div', 'etch-hub-sort-manager-intro');
+    hierarchyIntro.append(
+      element('h2', '', __('Hierarchy indicators', 'etch-content-hub-sort')),
+      element('p', '', __('Style the parent and child row highlights, left borders, and disclosure carets. Text must meet 4.5:1 contrast; borders and carets must meet 3:1.', 'etch-content-hub-sort'))
+    );
+    hierarchyContent.appendChild(hierarchyIntro);
+    const hierarchyToggle = element('label', 'etch-hub-sort-hierarchy-custom-toggle');
+    const hierarchyEnabled = element('input');
+    hierarchyEnabled.type = 'checkbox';
+    hierarchyEnabled.checked = config.hierarchyStyle.enabled;
+    hierarchyToggle.append(hierarchyEnabled, element('span', '', __('Use custom hierarchy styling', 'etch-content-hub-sort')));
+    hierarchyContent.appendChild(hierarchyToggle);
+    const hierarchyInputs = {};
+    const hierarchyPreviews = {};
+    for (const [level, name, symbol] of [
+      ['parent', __('Parent rows', 'etch-content-hub-sort'), '⌄'],
+      ['child', __('Child rows', 'etch-content-hub-sort'), '›'],
+    ]) {
+      const card = element('section', 'etch-hub-sort-hierarchy-card');
+      card.appendChild(element('h3', '', name));
+      const fields = element('div', 'etch-hub-sort-hierarchy-fields');
+      for (const [property, label] of [
+        ['bg', __('Background', 'etch-content-hub-sort')],
+        ['text', __('Text', 'etch-content-hub-sort')],
+        ['border', __('Left border', 'etch-content-hub-sort')],
+        ['caret', __('Caret', 'etch-content-hub-sort')],
+      ]) {
+        const field = element('label', 'etch-hub-sort-hierarchy-field');
+        field.appendChild(element('span', '', label));
+        const input = element('input', 'etch-hub-sort-color-input');
+        input.type = 'color';
+        input.value = config.hierarchyStyle[`${level}_${property}`];
+        field.appendChild(input);
+        fields.appendChild(field);
+        hierarchyInputs[`${level}_${property}`] = input;
+        input.addEventListener('input', updateHierarchyPreview);
+      }
+      const preview = element('div', 'etch-hub-sort-hierarchy-preview');
+      preview.append(element('span', 'etch-hub-sort-hierarchy-preview-caret', symbol), element('span', '', name));
+      hierarchyPreviews[level] = preview;
+      card.append(fields, preview);
+      hierarchyContent.appendChild(card);
+    }
+    const hierarchyList = element('div', 'etch-hub-sort-settings-group-list');
+    hierarchyList.append(...hierarchyContent.querySelectorAll('.etch-hub-sort-hierarchy-card'));
+    hierarchyContent.appendChild(hierarchyList);
+    const widthField = element('label', 'etch-hub-sort-hierarchy-width');
+    widthField.appendChild(element('span', '', __('Left border width', 'etch-content-hub-sort')));
+    const borderWidth = element('select', 'etch-hub-sort-placement-select');
+    for (let width = 1; width <= 6; width++) {
+      const option = element('option', '', sprintf(__('%d px', 'etch-content-hub-sort'), width));
+      option.value = String(width);
+      borderWidth.appendChild(option);
+    }
+    borderWidth.value = String(config.hierarchyStyle.border_width);
+    borderWidth.addEventListener('change', updateHierarchyPreview);
+    widthField.appendChild(borderWidth);
+    hierarchyContent.appendChild(widthField);
+    const hierarchyStatus = element('span', 'etch-hub-sort-setting-status');
+    hierarchyStatus.setAttribute('role', 'status');
+    const saveHierarchy = button(__('Save hierarchy styling', 'etch-content-hub-sort'), async () => {
+      saveHierarchy.disabled = true;
+      hierarchyStatus.textContent = __('Saving…', 'etch-content-hub-sort');
+      try {
+        const data = await saveSettings({ hierarchy_style: hierarchyValues() });
+        config.hierarchyStyle = data.hierarchy_style;
+        if (view) applyHierarchyStyle(view.root);
+        updateHierarchyPreview();
+        hierarchyStatus.textContent = __('Saved', 'etch-content-hub-sort');
+      } catch (error) {
+        updateHierarchyPreview();
+        hierarchyStatus.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
+      }
+    }, 'etch-hub-sort-hierarchy-save');
+    hierarchyContent.append(hierarchyStatus, saveHierarchy);
+    hierarchyEnabled.addEventListener('change', updateHierarchyPreview);
+    function hierarchyValues() {
+      const values = { enabled: hierarchyEnabled.checked, border_width: Number(borderWidth.value) };
+      for (const [key, input] of Object.entries(hierarchyInputs)) values[key] = input.value;
+      return values;
+    }
+    function updateHierarchyPreview() {
+      const values = hierarchyValues();
+      let lowestText = Infinity;
+      let lowestIndicator = Infinity;
+      for (const level of ['parent', 'child']) {
+        const preview = hierarchyPreviews[level];
+        preview.style.backgroundColor = values[`${level}_bg`];
+        preview.style.color = values[`${level}_text`];
+        preview.style.borderLeft = `${values.border_width}px solid ${values[`${level}_border`]}`;
+        preview.firstElementChild.style.color = values[`${level}_caret`];
+        lowestText = Math.min(lowestText, contrastRatio(values[`${level}_bg`], values[`${level}_text`]));
+        lowestIndicator = Math.min(lowestIndicator, contrastRatio(values[`${level}_bg`], values[`${level}_border`]), contrastRatio(values[`${level}_bg`], values[`${level}_caret`]));
+      }
+      const readable = lowestText >= 4.5 && lowestIndicator >= 3;
+      saveHierarchy.disabled = !readable || Object.entries(values).every(([key, value]) => value === config.hierarchyStyle[key]);
+      hierarchyStatus.textContent = readable
+        ? __('Text and indicators meet contrast requirements.', 'etch-content-hub-sort')
+        : __('Increase contrast: text needs 4.5:1, borders and carets need 3:1.', 'etch-content-hub-sort');
+    }
+    updateHierarchyPreview();
+
+    const buttonGroups = [
+      ['new', __('New item', 'etch-content-hub-sort')],
+      ['view', __('Etch table / Browse all', 'etch-content-hub-sort')],
+      ['settings', __('Hub settings', 'etch-content-hub-sort')],
+      ['hierarchy', __('Hierarchy', 'etch-content-hub-sort')],
+      ['bulk', __('Open all / Close all', 'etch-content-hub-sort')],
+      ['expand', __('Expand / Collapse row', 'etch-content-hub-sort')],
+      ['load_more', __('Load more children', 'etch-content-hub-sort')],
+      ['quick_edit', __('Quick edit', 'etch-content-hub-sort')],
+      ['open', __('Open in Builder', 'etch-content-hub-sort')],
+      ['trash', __('Trash', 'etch-content-hub-sort')],
+      ['pagination', __('Previous / Next', 'etch-content-hub-sort')],
+      ['notice', __('Saved item actions', 'etch-content-hub-sort')],
+    ];
+    const buttonHeading = element('div', 'etch-hub-sort-manager-intro');
+    buttonHeading.append(
+      element('h2', '', __('Button appearance', 'etch-content-hub-sort')),
+      element('p', '', __('Open a button to change its label or colors. Etch colors stay in place unless you enable custom colors.', 'etch-content-hub-sort'))
+    );
+    buttonContent.appendChild(buttonHeading);
+    const buttonList = element('div', 'etch-hub-sort-settings-group-list');
+    buttonContent.appendChild(buttonList);
+    const makeColorInput = (label, value) => {
+      const field = element('label', 'etch-hub-sort-button-color-field');
+      field.appendChild(element('span', '', label));
+      const input = element('input', 'etch-hub-sort-color-input');
+      input.type = 'color';
+      input.value = value;
+      field.appendChild(input);
+      return { field, input };
+    };
+    for (const [group, label] of buttonGroups) {
+      const saved = config.buttonStyles[group];
+      const card = element('details', 'etch-hub-sort-button-card');
+      const summary = element('summary', 'etch-hub-sort-button-card-summary');
+      const summaryCopy = element('span', 'etch-hub-sort-button-card-summary-copy');
+      const title = element('span', 'etch-hub-sort-button-card-title', label);
+      const choice = element('span', 'etch-hub-sort-button-card-choice');
+      summaryCopy.append(title, choice);
+      const controls = element('div', 'etch-hub-sort-button-card-controls');
+      const displayField = element('label', 'etch-hub-sort-button-display-field');
+      displayField.appendChild(element('span', '', __('Label style', 'etch-content-hub-sort')));
+      const display = element('select', 'etch-hub-sort-placement-select');
+      display.setAttribute('aria-label', sprintf(__('%s label style', 'etch-content-hub-sort'), label));
+      for (const [value, text] of [
+        ['icon', __('Icon only', 'etch-content-hub-sort')],
+        ['both', __('Icon + text', 'etch-content-hub-sort')],
+        ['text', __('Text only', 'etch-content-hub-sort')],
+      ]) {
+        const option = element('option', '', text);
+        option.value = value;
+        display.appendChild(option);
+      }
+      display.value = saved.display;
+      displayField.appendChild(display);
+      const bg = makeColorInput(__('Background', 'etch-content-hub-sort'), saved.background);
+      const fg = makeColorInput(__('Text / icon', 'etch-content-hub-sort'), saved.text);
+      const customField = element('label', 'etch-hub-sort-button-custom-field');
+      const custom = element('input');
+      custom.type = 'checkbox';
+      custom.checked = saved.custom_colors;
+      customField.append(custom, element('span', '', __('Use custom colors', 'etch-content-hub-sort')));
+      const preview = element('span', 'etch-hub-sort-button etch-hub-sort-themed etch-hub-sort-button-preview');
+      preview.dataset.buttonGroup = group;
+      preview.setAttribute('aria-hidden', 'true');
+      applyButtonStyle(preview);
+      preview.appendChild(element('span', 'etch-hub-sort-button-preview-label', label));
+      if (group === 'view') {
+        preview.dataset.viewMode = 'etch';
+        appendNativeIcon(preview, '.settings-bar__section.etch-logo svg');
+      }
+      summary.append(summaryCopy, preview);
+      const editor = element('div', 'etch-hub-sort-button-card-editor');
+      const status = element('span', 'etch-hub-sort-setting-status');
+      status.setAttribute('role', 'status');
+      const save = button(__('Save', 'etch-content-hub-sort'), async () => {
+        save.disabled = true;
+        status.textContent = __('Saving…', 'etch-content-hub-sort');
+        try {
+          const result = await saveSettings({ button_style: { group, background: bg.input.value, text: fg.input.value, display: display.value, custom_colors: custom.checked } });
+          config.buttonStyles = result.button_styles;
+          repaintButtons();
+          updatePreview();
+          status.textContent = __('Saved', 'etch-content-hub-sort');
+        } catch (error) {
+          updatePreview();
+          status.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
+        }
+      }, 'etch-hub-sort-button-save');
+      const updatePreview = () => {
+        const ratio = contrastRatio(bg.input.value, fg.input.value);
+        const changed = bg.input.value !== config.buttonStyles[group].background || fg.input.value !== config.buttonStyles[group].text || display.value !== config.buttonStyles[group].display || custom.checked !== config.buttonStyles[group].custom_colors;
+        preview.dataset.display = display.value;
+        preview.dataset.customColors = String(custom.checked);
+        bg.input.disabled = !custom.checked;
+        fg.input.disabled = !custom.checked;
+        colors.hidden = !custom.checked;
+        preview.style.setProperty('--etch-button-bg', bg.input.value);
+        preview.style.setProperty('--etch-button-text', fg.input.value);
+        choice.textContent = `${display.options[display.selectedIndex].textContent} · ${custom.checked ? __('Custom colors', 'etch-content-hub-sort') : __('Etch colors', 'etch-content-hub-sort')}${changed ? ` · ${__('Unsaved', 'etch-content-hub-sort')}` : ''}`;
+        save.disabled = (custom.checked && ratio < 4.5) || !changed;
+        status.textContent = custom.checked && ratio < 4.5
+          ? sprintf(__('Contrast %s:1 is too low. Choose at least 4.5:1.', 'etch-content-hub-sort'), ratio.toFixed(2))
+          : changed ? __('Unsaved changes', 'etch-content-hub-sort') : '';
+      };
+      for (const input of [display, custom, bg.input, fg.input]) input.addEventListener('input', updatePreview);
+      const colors = element('div', 'etch-hub-sort-button-card-colors');
+      colors.append(bg.field, fg.field);
+      const actions = element('div', 'etch-hub-sort-button-card-actions');
+      actions.append(status, save);
+      controls.append(displayField, customField);
+      editor.append(controls, colors, actions);
+      card.append(summary, editor);
+      buttonList.appendChild(card);
+      updatePreview();
+    }
   }
 
   function scheduleRefresh() {
+    const selected = selectedType();
+    const selection = selected ? `${selected.kind}:${selected.type}` : '';
+    if (selection !== observedSelection) {
+      observedSelection = selection;
+      refresh();
+      return;
+    }
     if (scheduled) return;
     scheduled = true;
     setTimeout(() => { scheduled = false; refresh(); }, 60);
   }
   function start() {
+    const selected = selectedType();
+    observedSelection = selected ? `${selected.kind}:${selected.type}` : '';
     refresh();
     new MutationObserver(scheduleRefresh).observe(document.body, { childList: true, subtree: true });
   }
