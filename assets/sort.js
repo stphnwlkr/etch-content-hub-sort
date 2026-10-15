@@ -1620,7 +1620,7 @@
     const hierarchyIntro = element('div', 'etch-hub-sort-manager-intro');
     hierarchyIntro.append(
       element('h2', '', __('Hierarchy indicators', 'etch-content-hub-sort')),
-      element('p', '', __('Style the parent and child row highlights, left borders, and disclosure carets. Text must meet 4.5:1 contrast; borders and carets must meet 3:1.', 'etch-content-hub-sort'))
+      element('p', '', __('Style parent and child rows. Choosing a color turns on custom styling. Text needs 4.5:1 contrast; borders and carets need 3:1.', 'etch-content-hub-sort'))
     );
     hierarchyContent.appendChild(hierarchyIntro);
     const hierarchyToggle = element('label', 'etch-hub-sort-hierarchy-custom-toggle');
@@ -1630,6 +1630,8 @@
     hierarchyToggle.append(hierarchyEnabled, element('span', '', __('Use custom hierarchy styling', 'etch-content-hub-sort')));
     hierarchyContent.appendChild(hierarchyToggle);
     const hierarchyInputs = {};
+    const hierarchyFieldErrors = {};
+    const hierarchyColorValues = {};
     const hierarchyPreviews = {};
     for (const [level, name, symbol] of [
       ['parent', __('Parent rows', 'etch-content-hub-sort'), '⌄'],
@@ -1645,14 +1647,25 @@
         ['caret', __('Caret', 'etch-content-hub-sort')],
       ]) {
         const field = element('label', 'etch-hub-sort-hierarchy-field');
-        field.appendChild(element('span', '', label));
+        field.appendChild(element('span', 'etch-hub-sort-hierarchy-field-label', label));
+        const control = element('span', 'etch-hub-sort-hierarchy-color-control');
         const input = element('input', 'etch-hub-sort-color-input');
         input.type = 'color';
         input.value = config.hierarchyStyle[`${level}_${property}`];
-        field.appendChild(input);
+        const value = element('span', 'etch-hub-sort-hierarchy-color-value', input.value.toUpperCase());
+        const error = element('span', 'etch-hub-sort-hierarchy-field-error');
+        error.id = `etch-hub-sort-${level}-${property}-error`;
+        input.setAttribute('aria-describedby', error.id);
+        control.append(input, value);
+        field.append(control, error);
         fields.appendChild(field);
         hierarchyInputs[`${level}_${property}`] = input;
-        input.addEventListener('input', updateHierarchyPreview);
+        hierarchyFieldErrors[`${level}_${property}`] = error;
+        hierarchyColorValues[`${level}_${property}`] = value;
+        input.addEventListener('input', () => {
+          hierarchyEnabled.checked = true;
+          updateHierarchyPreview();
+        });
       }
       const preview = element('div', 'etch-hub-sort-hierarchy-preview');
       preview.append(element('span', 'etch-hub-sort-hierarchy-preview-caret', symbol), element('span', '', name));
@@ -1672,12 +1685,20 @@
       borderWidth.appendChild(option);
     }
     borderWidth.value = String(config.hierarchyStyle.border_width);
-    borderWidth.addEventListener('change', updateHierarchyPreview);
+    borderWidth.addEventListener('change', () => {
+      hierarchyEnabled.checked = true;
+      updateHierarchyPreview();
+    });
     widthField.appendChild(borderWidth);
     hierarchyContent.appendChild(widthField);
     const hierarchyStatus = element('span', 'etch-hub-sort-setting-status');
     hierarchyStatus.setAttribute('role', 'status');
     const saveHierarchy = button(__('Save hierarchy styling', 'etch-content-hub-sort'), async () => {
+      const invalidFields = updateHierarchyPreview();
+      if (hierarchyEnabled.checked && invalidFields.length) {
+        hierarchyInputs[invalidFields[0]].focus();
+        return;
+      }
       saveHierarchy.disabled = true;
       hierarchyStatus.textContent = __('Saving…', 'etch-content-hub-sort');
       try {
@@ -1692,7 +1713,13 @@
       }
     }, 'etch-hub-sort-hierarchy-save');
     hierarchyContent.append(hierarchyStatus, saveHierarchy);
-    hierarchyEnabled.addEventListener('change', updateHierarchyPreview);
+    hierarchyEnabled.addEventListener('change', () => {
+      if (!hierarchyEnabled.checked) {
+        for (const [key, input] of Object.entries(hierarchyInputs)) input.value = config.hierarchyStyle[key];
+        borderWidth.value = String(config.hierarchyStyle.border_width);
+      }
+      updateHierarchyPreview();
+    });
     function hierarchyValues() {
       const values = { enabled: hierarchyEnabled.checked, border_width: Number(borderWidth.value) };
       for (const [key, input] of Object.entries(hierarchyInputs)) values[key] = input.value;
@@ -1700,22 +1727,32 @@
     }
     function updateHierarchyPreview() {
       const values = hierarchyValues();
-      let lowestText = Infinity;
-      let lowestIndicator = Infinity;
+      const invalidFields = [];
       for (const level of ['parent', 'child']) {
         const preview = hierarchyPreviews[level];
         preview.style.backgroundColor = values[`${level}_bg`];
         preview.style.color = values[`${level}_text`];
         preview.style.borderLeft = `${values.border_width}px solid ${values[`${level}_border`]}`;
         preview.firstElementChild.style.color = values[`${level}_caret`];
-        lowestText = Math.min(lowestText, contrastRatio(values[`${level}_bg`], values[`${level}_text`]));
-        lowestIndicator = Math.min(lowestIndicator, contrastRatio(values[`${level}_bg`], values[`${level}_border`]), contrastRatio(values[`${level}_bg`], values[`${level}_caret`]));
+        for (const [property, minimum] of [['text', 4.5], ['border', 3], ['caret', 3]]) {
+          const key = `${level}_${property}`;
+          const ratio = contrastRatio(values[`${level}_bg`], values[key]);
+          const invalid = ratio < minimum;
+          const input = hierarchyInputs[key];
+          input.setAttribute('aria-invalid', String(invalid));
+          hierarchyFieldErrors[key].textContent = invalid
+            ? sprintf(__('Contrast %1$s:1; needs %2$s:1', 'etch-content-hub-sort'), ratio.toFixed(1), minimum.toFixed(1))
+            : '';
+          if (invalid) invalidFields.push(key);
+        }
       }
-      const readable = lowestText >= 4.5 && lowestIndicator >= 3;
-      saveHierarchy.disabled = !readable || Object.entries(values).every(([key, value]) => value === config.hierarchyStyle[key]);
-      hierarchyStatus.textContent = readable
-        ? __('Text and indicators meet contrast requirements.', 'etch-content-hub-sort')
-        : __('Increase contrast: text needs 4.5:1, borders and carets need 3:1.', 'etch-content-hub-sort');
+      for (const [key, input] of Object.entries(hierarchyInputs)) hierarchyColorValues[key].textContent = input.value.toUpperCase();
+      const changed = Object.entries(values).some(([key, value]) => value !== config.hierarchyStyle[key]);
+      saveHierarchy.disabled = !changed;
+      hierarchyStatus.textContent = invalidFields.length
+        ? __('Adjust the colors marked above before saving.', 'etch-content-hub-sort')
+        : changed ? __('Ready to save.', 'etch-content-hub-sort') : __('No unsaved changes.', 'etch-content-hub-sort');
+      return invalidFields;
     }
     updateHierarchyPreview();
 

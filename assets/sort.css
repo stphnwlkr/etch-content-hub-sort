@@ -502,10 +502,14 @@
 .etch-hub-sort-hierarchy-custom-toggle input { margin: 0; accent-color: var(--e-primary, #54ded1); }
 .etch-hub-sort-hierarchy-card { margin: 0; padding: 14px 18px; border: 0; border-radius: 0; background: transparent; }
 .etch-hub-sort-hierarchy-card h3 { margin: 0 0 12px; font-size: var(--e-font-size-l, 13px); font-weight: 600; }
-.etch-hub-sort-hierarchy-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.etch-hub-sort-hierarchy-field { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
-.etch-hub-sort-hierarchy-field span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.etch-hub-sort-hierarchy-field input { flex: 0 0 3rem; }
+.etch-hub-sort-hierarchy-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.etch-hub-sort-hierarchy-field { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; min-width: 0; cursor: pointer; }
+.etch-hub-sort-hierarchy-field-label { font-weight: 500; }
+.etch-hub-sort-hierarchy-color-control { display: flex; align-items: center; gap: 9px; min-height: 2rem; }
+.etch-hub-sort-hierarchy-color-value { font-family: monospace; font-size: 0.8rem; color: var(--e-text-color-secondary, #a3a3a3); }
+.etch-hub-sort-hierarchy-field-error { min-height: 1.2em; color: #f3a9a9; font-size: 0.72rem; line-height: 1.2; }
+.etch-hub-sort-hierarchy-field-error:empty { visibility: hidden; }
+.etch-hub-sort-hierarchy-field input[aria-invalid="true"] { border-color: #f3a9a9; outline: 1px solid #f3a9a9; outline-offset: 2px; }
 .etch-hub-sort-hierarchy-preview { display: flex; align-items: center; gap: 12px; min-height: 40px; margin-top: 16px; padding: 6px 12px; border-radius: 4px; box-sizing: border-box; }
 .etch-hub-sort-hierarchy-preview-caret { display: inline-flex; align-items: center; justify-content: center; width: 20px; font-size: 20px; }
 .etch-hub-sort-hierarchy-width { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 12px 0; }
