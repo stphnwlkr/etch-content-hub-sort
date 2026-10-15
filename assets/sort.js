@@ -1599,6 +1599,7 @@
     arrangeSetting(viewRow, viewLabel, viewHelp, viewStatus, viewSelect);
     arrangeSetting(placement, placementLabel, placementHelp, placementStatus, placementSelect);
     arrangeSetting(defaultRow, defaultLabel, defaultHelp, defaultStatus, defaultControls);
+    arrangeSetting(termDefaultRow, termDefaultLabel, termDefaultHelp, termDefaultStatus, termDefaultControls);
     arrangeSetting(colorRow, colorHeading, colorHelp, contrastStatus, colorControls, preview, saveColors);
     const generalHeading = element('div', 'etch-hub-sort-manager-intro');
     generalHeading.appendChild(element('h2', '', __('General', 'etch-content-hub-sort')));
@@ -1613,7 +1614,7 @@
       content.appendChild(section);
     };
     settingsGroup(__('Content Hub', 'etch-content-hub-sort'), enableSetting.row, viewRow, sidebarSetting.row);
-    settingsGroup(__('Table', 'etch-content-hub-sort'), placement, defaultRow);
+    settingsGroup(__('Table', 'etch-content-hub-sort'), placement, defaultRow, termDefaultRow);
     settingsGroup(__('Appearance', 'etch-content-hub-sort'), colorRow);
 
     const hierarchyIntro = element('div', 'etch-hub-sort-manager-intro');

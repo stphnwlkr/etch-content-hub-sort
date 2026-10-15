@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.7.6
+Stable tag: 1.7.7
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -49,6 +49,10 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 1.7.7 =
+
+* Place Initial taxonomy sorting in the Table settings group, beside post sorting.
 
 = 1.7.6 =
 
