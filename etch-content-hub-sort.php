@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Etch Content Hub Sort
  * Description: Adds search, full-result sorting, pagination, and hierarchy browsing to Etch's Content Hub.
- * Version: 1.7.8
+ * Version: 1.7.9
  * Requires at least: 5.9
  * Requires PHP: 8.1
  * Update URI: https://github.com/stphnwlkr/etch-content-hub-sort
@@ -78,7 +78,7 @@ function etch_hub_sort_default_view(): string {
 
 /** Shared defaults for the buttons in the browse view. */
 function etch_hub_sort_button_defaults(): array {
-	$groups = array( 'new', 'view', 'settings', 'hierarchy', 'bulk', 'expand', 'load_more', 'quick_edit', 'open', 'trash', 'pagination', 'notice' );
+	$groups = array( 'new', 'view', 'settings', 'hierarchy', 'bulk', 'expand', 'load_more', 'quick_edit', 'open', 'wordpress', 'trash', 'pagination', 'notice' );
 	$defaults = array();
 	foreach ( $groups as $group ) {
 		$defaults[ $group ] = array( 'background' => '#292929', 'text' => '#f7f7f8', 'display' => 'icon', 'custom_colors' => false );
@@ -190,7 +190,7 @@ add_action(
 					return current_user_can( 'manage_options' );
 				},
 				'callback'            => static function ( WP_REST_Request $request ) {
-					if ( ! $request->has_param( 'enabled' ) && ! $request->has_param( 'show_sidebar_icon' ) && ! $request->has_param( 'default_view' ) && ! $request->has_param( 'actions_first' ) && ! $request->has_param( 'actions_layout' ) && ! $request->has_param( 'default_column' ) && ! $request->has_param( 'default_order' ) && ! $request->has_param( 'term_default_column' ) && ! $request->has_param( 'term_default_order' ) && ! $request->has_param( 'active_bg' ) && ! $request->has_param( 'active_text' ) && ! $request->has_param( 'button_style' ) && ! $request->has_param( 'hierarchy_style' ) ) {
+					if ( ! $request->has_param( 'enabled' ) && ! $request->has_param( 'show_sidebar_icon' ) && ! $request->has_param( 'show_wordpress_edit' ) && ! $request->has_param( 'default_view' ) && ! $request->has_param( 'actions_first' ) && ! $request->has_param( 'actions_layout' ) && ! $request->has_param( 'default_column' ) && ! $request->has_param( 'default_order' ) && ! $request->has_param( 'term_default_column' ) && ! $request->has_param( 'term_default_order' ) && ! $request->has_param( 'active_bg' ) && ! $request->has_param( 'active_text' ) && ! $request->has_param( 'button_style' ) && ! $request->has_param( 'hierarchy_style' ) ) {
 						return new WP_Error( 'etch_hub_sort_missing_setting', __( 'Choose a setting to update.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
 					}
 					$colors = etch_hub_sort_heading_colors();
@@ -242,6 +242,9 @@ add_action(
 					if ( $request->has_param( 'show_sidebar_icon' ) ) {
 						update_option( 'etch_hub_sort_show_sidebar_icon', $request->get_param( 'show_sidebar_icon' ) ? '1' : '0' );
 					}
+					if ( $request->has_param( 'show_wordpress_edit' ) ) {
+						update_option( 'etch_hub_sort_show_wordpress_edit', $request->get_param( 'show_wordpress_edit' ) ? '1' : '0' );
+					}
 					if ( $request->has_param( 'default_view' ) ) {
 						update_option( 'etch_hub_sort_default_view', $request->get_param( 'default_view' ) );
 					}
@@ -285,6 +288,7 @@ add_action(
 						array(
 							'enabled'       => '0' !== get_option( 'etch_hub_sort_enabled', '1' ),
 							'show_sidebar_icon' => '0' !== get_option( 'etch_hub_sort_show_sidebar_icon', '1' ),
+							'show_wordpress_edit' => '0' !== get_option( 'etch_hub_sort_show_wordpress_edit', '1' ),
 							'default_view'  => etch_hub_sort_default_view(),
 							'actions_first'  => 'start' === etch_hub_sort_actions_layout(),
 							'actions_layout' => etch_hub_sort_actions_layout(),
@@ -302,6 +306,7 @@ add_action(
 				'args'                => array(
 					'enabled'       => array( 'type' => 'boolean' ),
 					'show_sidebar_icon' => array( 'type' => 'boolean' ),
+					'show_wordpress_edit' => array( 'type' => 'boolean' ),
 					'default_view'  => array( 'type' => 'string', 'enum' => array( 'etch', 'browse' ) ),
 					'actions_first' => array( 'type' => 'boolean' ),
 					'actions_layout' => array( 'type' => 'string', 'enum' => array( 'end', 'start', 'split', 'open_start' ) ),
@@ -378,6 +383,8 @@ add_action(
 					$items = array_map(
 						static function ( WP_Term $term ) use ( $slug, $taxonomy, $parents_with_children, $parent_picker, $default_term_id ): array {
 							$parent_term = $term->parent ? get_term( $term->parent, $slug ) : null;
+							$can_edit = current_user_can( 'edit_term', $term->term_id );
+							$edit_link = $can_edit ? get_edit_term_link( $term->term_id, $slug ) : null;
 							return array(
 								'id' => $term->term_id,
 								'title' => $term->name,
@@ -388,7 +395,8 @@ add_action(
 								'parent_title' => $parent_term instanceof WP_Term ? $parent_term->name : '',
 								'has_children' => in_array( $term->term_id, $parents_with_children, true ),
 								'ancestors' => $parent_picker && $taxonomy->hierarchical ? array_map( 'intval', get_ancestors( $term->term_id, $slug, 'taxonomy' ) ) : array(),
-								'can_edit' => current_user_can( 'edit_term', $term->term_id ),
+								'can_edit' => $can_edit,
+								'wordpress_edit_url' => is_string( $edit_link ) ? esc_url_raw( $edit_link ) : null,
 								'can_delete' => $term->term_id !== $default_term_id && current_user_can( 'delete_term', $term->term_id ),
 							);
 						},
@@ -766,6 +774,7 @@ add_action(
 
 					$items = array_map(
 						static function ( WP_Post $post ) use ( $parents_with_children, $post_type ): array {
+							$can_edit = current_user_can( 'edit_post', $post->ID );
 							return array(
 								'id'       => $post->ID,
 								'title'    => get_the_title( $post ),
@@ -778,7 +787,8 @@ add_action(
 								'parent_title' => $post->post_parent ? get_the_title( $post->post_parent ) : '',
 								'has_children' => in_array( $post->ID, $parents_with_children, true ),
 								'ancestors' => $post_type->hierarchical ? array_map( 'intval', get_post_ancestors( $post ) ) : array(),
-								'can_edit' => current_user_can( 'edit_post', $post->ID ),
+								'can_edit' => $can_edit,
+								'wordpress_edit_url' => $can_edit ? esc_url_raw( (string) get_edit_post_link( $post->ID, 'raw' ) ) : null,
 								'can_delete' => current_user_can( 'delete_post', $post->ID ),
 							);
 						},
@@ -824,7 +834,7 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '1.7.8';
+		$version = '1.7.9';
 		$types   = array();
 		$hierarchical_types = array();
 		$taxonomies = array();
@@ -867,6 +877,7 @@ add_action(
 					'hierarchicalTaxonomies' => $hierarchical_taxonomies,
 					'enabled'  => '0' !== get_option( 'etch_hub_sort_enabled', '1' ),
 					'showSidebarIcon' => '0' !== get_option( 'etch_hub_sort_show_sidebar_icon', '1' ),
+					'showWordPressEdit' => '0' !== get_option( 'etch_hub_sort_show_wordpress_edit', '1' ),
 					'defaultView' => etch_hub_sort_default_view(),
 					'actionsLayout' => etch_hub_sort_actions_layout(),
 					'defaultColumn' => etch_hub_sort_default_column(),

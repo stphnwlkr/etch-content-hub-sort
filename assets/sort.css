@@ -133,11 +133,13 @@
 .etch-hub-sort-themed[data-button-group="quick_edit"]::before { mask-image: url('filter-mail-edit-stroke-sharp.svg'); }
 .etch-hub-sort-themed[data-button-group="open"]::before,
 .etch-hub-sort-themed[data-button-group="notice"]::before { mask-image: url('ui-open.svg'); }
+.etch-hub-sort-themed[data-button-group="wordpress"]::before { mask-image: url('wordpress-alt.svg'); }
 .etch-hub-sort-themed[data-button-group="notice"][data-notice-action="dismiss"]::before { mask-image: url('ui-x.svg'); }
 .etch-hub-sort-themed[data-button-group="trash"]::before { mask-image: url('etch-trash.svg'); }
 .etch-hub-sort-themed[data-button-group="pagination"][data-page-direction="previous"]::before { mask-image: url('ui-left.svg'); }
 .etch-hub-sort-themed[data-button-group="pagination"][data-page-direction="next"]::before { mask-image: url('ui-right.svg'); }
 .etch-hub-sort-themed[data-button-group="open"]:not([data-display="icon"]),
+.etch-hub-sort-themed[data-button-group="wordpress"]:not([data-display="icon"]),
 .etch-hub-sort-themed[data-button-group="trash"]:not([data-display="icon"]) { width: auto; flex-basis: auto; }
 
 .etch-hub-sort-hierarchy[aria-pressed="true"] {
@@ -291,7 +293,7 @@
   border: 0;
 }
 .etch-hub-sort-action-buttons { display: flex; align-items: center; gap: 0.4rem; }
-.etch-hub-sort-open, .etch-hub-sort-trash {
+.etch-hub-sort-open, .etch-hub-sort-wordpress, .etch-hub-sort-trash {
   width: calc(var(--e-icon-padding, 6px) * 2 + var(--e-icon-size-l, 16px));
   height: calc(var(--e-icon-padding, 6px) * 2 + var(--e-icon-size-l, 16px));
   flex: 0 0 auto;
@@ -304,6 +306,7 @@
   line-height: 1;
 }
 .etch-hub-sort-open { background: oklch(1 0 0 / 0.1); border-color: oklch(1 0 0 / 0.1); color: #f7f7f8; }
+.etch-hub-sort-wordpress { background: oklch(1 0 0 / 0.1); border-color: oklch(1 0 0 / 0.1); color: #f7f7f8; text-decoration: none; }
 .etch-hub-sort-trash { background: oklch(0.627966 0.257704 29.2346 / 0.4); border-color: oklch(0.627966 0.257704 29.2346 / 0.4); color: #f7f7f8; }
 .etch-hub-sort-trash:not([data-custom-colors="true"]):hover { background: oklch(0.627966 0.257704 29.2346 / 0.55); }
 .etch-hub-sort-trash-icon { width: 14px; height: 14px; display: block; filter: invert(1); }
@@ -331,6 +334,9 @@
 }
 .etch-hub-sort-actions-cell { width: 88px; }
 .etch-hub-sort-actions-cell.etch-hub-sort-action-single { width: 70px; }
+.etch-hub-sort-actions-cell:has(.etch-hub-sort-wordpress) { width: 128px; }
+.etch-hub-sort-actions-cell.etch-hub-sort-action-single:has(.etch-hub-sort-wordpress) { width: 102px; }
+.etch-hub-sort-actions-cell:has(.etch-hub-sort-themed:not([data-display="icon"])) { width: auto; max-width: none; }
 .etch-hub-sort-heading { border: 0; padding: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.25rem; color: inherit; background: transparent; }
 .etch-hub-sort-icon { display: inline-block; width: 16px; height: 16px; flex: 0 0 16px; background: currentColor; opacity: 0.8; mask-position: center; mask-size: contain; mask-repeat: no-repeat; }
 .etch-hub-sort-icon-asc { mask-image: url('arrow-up-03-stroke-sharp.svg'); }

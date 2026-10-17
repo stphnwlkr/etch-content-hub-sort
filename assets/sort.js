@@ -130,6 +130,18 @@
     applyButtonStyle(node);
     return node;
   };
+  const wordpressEditLink = item => {
+    if (!config.showWordPressEdit || !item.can_edit || !item.wordpress_edit_url) return null;
+    const link = element('a', 'etch-hub-sort-button etch-hub-sort-themed etch-hub-sort-wordpress', __('Edit in WordPress', 'etch-content-hub-sort'));
+    link.href = item.wordpress_edit_url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.dataset.buttonGroup = 'wordpress';
+    link.title = __('Edit in WordPress (opens in a new tab)', 'etch-content-hub-sort');
+    link.setAttribute('aria-label', sprintf(__('Edit %s in WordPress (opens in a new tab)', 'etch-content-hub-sort'), item.title || `#${item.id}`));
+    applyButtonStyle(link);
+    return link;
+  };
   const repaintButtons = () => {
     if (view) for (const node of view.root.querySelectorAll('.etch-hub-sort-themed')) applyButtonStyle(node);
   };
@@ -825,6 +837,8 @@
         }
         const actions = element('td', 'etch-hub-sort-actions-cell');
         const buttons = element('div', 'etch-hub-sort-action-buttons');
+        const wordpress = wordpressEditLink(item);
+        if (wordpress) buttons.appendChild(wordpress);
         if (item.can_delete) {
           const remove = themedButton(__('Delete', 'etch-content-hub-sort'), async () => {
             const warning = item.has_children
@@ -881,6 +895,8 @@
       open.setAttribute('aria-label', sprintf(__('Open %s in Builder', 'etch-content-hub-sort'), item.title || `#${item.id}`));
       open.title = __('Open in Builder', 'etch-content-hub-sort');
       actionButtons.appendChild(open);
+      const wordpress = wordpressEditLink(item);
+      if (wordpress) actionButtons.appendChild(wordpress);
       if (item.can_delete) {
         const trash = themedButton(__('Trash', 'etch-content-hub-sort'), async () => {
           const name = item.title || `#${item.id}`;
@@ -1349,6 +1365,12 @@
       description: __('Hide this shortcut to leave room for other add-ons. It stays available when search and sorting is off.', 'etch-content-hub-sort'),
       key: 'show_sidebar_icon', configKey: 'showSidebarIcon',
     });
+    const wordpressEditSetting = addSetting({
+      label: __('Show Edit in WordPress', 'etch-content-hub-sort'),
+      ariaLabel: __('Show Edit in WordPress buttons in the Content Hub table', 'etch-content-hub-sort'),
+      description: __('Open the WordPress editor and custom fields for items you can edit.', 'etch-content-hub-sort'),
+      key: 'show_wordpress_edit', configKey: 'showWordPressEdit',
+    });
     const viewRow = element('div', 'etch-hub-sort-setting');
     const viewWrapper = element('div', 'settings-toggle-input-wrapper svelte-2pz811');
     const viewLabel = element('span', 'settings-toggle-name svelte-2pz811', __('Default view', 'etch-content-hub-sort'));
@@ -1596,6 +1618,7 @@
     };
     arrangeSetting(enableSetting.row, enableSetting.name, enableSetting.help, enableSetting.status, enableSetting.toggle);
     arrangeSetting(sidebarSetting.row, sidebarSetting.name, sidebarSetting.help, sidebarSetting.status, sidebarSetting.toggle);
+    arrangeSetting(wordpressEditSetting.row, wordpressEditSetting.name, wordpressEditSetting.help, wordpressEditSetting.status, wordpressEditSetting.toggle);
     arrangeSetting(viewRow, viewLabel, viewHelp, viewStatus, viewSelect);
     arrangeSetting(placement, placementLabel, placementHelp, placementStatus, placementSelect);
     arrangeSetting(defaultRow, defaultLabel, defaultHelp, defaultStatus, defaultControls);
@@ -1614,7 +1637,7 @@
       content.appendChild(section);
     };
     settingsGroup(__('Content Hub', 'etch-content-hub-sort'), enableSetting.row, viewRow, sidebarSetting.row);
-    settingsGroup(__('Table', 'etch-content-hub-sort'), placement, defaultRow, termDefaultRow);
+    settingsGroup(__('Table', 'etch-content-hub-sort'), wordpressEditSetting.row, placement, defaultRow, termDefaultRow);
     settingsGroup(__('Appearance', 'etch-content-hub-sort'), colorRow);
 
     const hierarchyIntro = element('div', 'etch-hub-sort-manager-intro');
@@ -1766,6 +1789,7 @@
       ['load_more', __('Load more children', 'etch-content-hub-sort')],
       ['quick_edit', __('Quick edit', 'etch-content-hub-sort')],
       ['open', __('Open in Builder', 'etch-content-hub-sort')],
+      ['wordpress', __('Edit in WordPress', 'etch-content-hub-sort')],
       ['trash', __('Trash', 'etch-content-hub-sort')],
       ['pagination', __('Previous / Next', 'etch-content-hub-sort')],
       ['notice', __('Saved item actions', 'etch-content-hub-sort')],

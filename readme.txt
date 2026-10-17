@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.7.8
+Stable tag: 1.7.9
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -19,6 +19,8 @@ Taxonomy terms have a browse table with Name, Slug, Description, Count, and Pare
 The Hierarchy section can customize parent and child row backgrounds, text, left borders, carets, and border width. Existing colors remain until custom hierarchy styling is enabled. Row text must meet 4.5:1 contrast, and borders and carets must meet 3:1 contrast against their row backgrounds.
 
 The browse table also has a New item button with Draft or Publish status. For hierarchical content types, choose a parent while creating an item. Each existing item has Quick edit for changing its title, slug, date, status, and, for hierarchical types, its parent. If both title and slug were blank, entering a title suggests a slug; WordPress generates the saved slug unless the user edits that suggestion. Date and time use the site's timezone; a future date can be saved as a draft, but cannot be set to Publish from this table. The parent picker searches the full content type. WordPress permissions control which actions appear and which changes are accepted.
+
+An Edit in WordPress button appears beside Open in Builder for posts and pages. It opens the WordPress editor in a new tab, including custom fields available there. Term rows also link to the WordPress term editor. The Table setting can hide these buttons; they are shown by default and only appear for items the user may edit.
 
 Hierarchical content types, such as Pages, open in a parent and child view. Expand a parent to load its children, or use the Open all / Close all control for every branch on the current page. Large branches have a Load more children control. Sorting applies within each level, while the main pagination counts top-level items. The Hierarchy button switches between the tree and flat list. Hierarchy controls appear only in the browse table. Search results appear as a flat list so matches at every depth remain visible; child results name their parent.
 
@@ -38,7 +40,7 @@ Starting with version 1.7.6, WordPress checks this plugin's public GitHub Releas
 
 = Can I edit an item's content in the browse table? =
 
-Quick edit changes title, slug, date, status, and parent. Use the Open button to edit the item's content in Etch. The Etch table button returns to Etch's original inline editing and creation view.
+Quick edit changes title, slug, date, status, and parent. Use Open in Builder to edit the item's content in Etch, or Edit in WordPress to reach the WordPress editor and custom fields. The Etch table button returns to Etch's original inline editing and creation view.
 
 = What happens when I select Trash? =
 
@@ -49,6 +51,11 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 1.7.9 =
+
+* Add a default-on Edit in WordPress button with the outline Dashicons WordPress icon beside the Etch editor action, with links for editable taxonomy terms too.
+* Add a Table setting to show or hide the button and an individual button appearance setting.
 
 = 1.7.8 =
 
