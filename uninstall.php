@@ -22,4 +22,5 @@ delete_option( 'etch_hub_sort_term_default_order' );
 delete_option( 'etch_hub_sort_active_bg' );
 delete_option( 'etch_hub_sort_active_text' );
 delete_option( 'etch_hub_sort_button_styles' );
+delete_option( 'etch_hub_sort_status_styles' );
 delete_option( 'etch_hub_sort_hierarchy_style' );

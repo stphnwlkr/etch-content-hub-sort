@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Etch Content Hub Sort
  * Description: Adds search, full-result sorting, pagination, and hierarchy browsing to Etch's Content Hub.
- * Version: 1.7.9
+ * Version: 1.7.15
  * Requires at least: 5.9
  * Requires PHP: 8.1
  * Update URI: https://github.com/stphnwlkr/etch-content-hub-sort
@@ -17,6 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/includes/github-updates.php';
+require_once __DIR__ . '/includes/statuses.php';
 
 /** Return the saved layout, including the earlier start/end switch. */
 function etch_hub_sort_actions_layout(): string {
@@ -150,7 +151,7 @@ function etch_hub_sort_parent_error( WP_Post_Type $post_type, int $parent_id, in
 	}
 	$parent = get_post( $parent_id );
 	$unchanged = $post_id && $parent_id === (int) get_post_field( 'post_parent', $post_id );
-	if ( ! $post_type->hierarchical || ! $parent || $parent->post_type !== $post_type->name || ! in_array( $parent->post_status, array( 'publish', 'draft' ), true ) || ( ! $unchanged && ! current_user_can( 'edit_post', $parent_id ) ) ) {
+	if ( ! $post_type->hierarchical || ! $parent || $parent->post_type !== $post_type->name || ! isset( etch_hub_sort_post_statuses()[ $parent->post_status ] ) || ( ! $unchanged && ! current_user_can( 'edit_post', $parent_id ) ) ) {
 		return new WP_Error( 'etch_hub_sort_invalid_parent', __( 'Choose an editable parent from this content type.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
 	}
 	if ( $post_id && ( $parent_id === $post_id || in_array( $post_id, array_map( 'intval', get_post_ancestors( $parent_id ) ), true ) ) ) {
@@ -190,7 +191,7 @@ add_action(
 					return current_user_can( 'manage_options' );
 				},
 				'callback'            => static function ( WP_REST_Request $request ) {
-					if ( ! $request->has_param( 'enabled' ) && ! $request->has_param( 'show_sidebar_icon' ) && ! $request->has_param( 'show_wordpress_edit' ) && ! $request->has_param( 'default_view' ) && ! $request->has_param( 'actions_first' ) && ! $request->has_param( 'actions_layout' ) && ! $request->has_param( 'default_column' ) && ! $request->has_param( 'default_order' ) && ! $request->has_param( 'term_default_column' ) && ! $request->has_param( 'term_default_order' ) && ! $request->has_param( 'active_bg' ) && ! $request->has_param( 'active_text' ) && ! $request->has_param( 'button_style' ) && ! $request->has_param( 'hierarchy_style' ) ) {
+					if ( ! $request->has_param( 'enabled' ) && ! $request->has_param( 'show_sidebar_icon' ) && ! $request->has_param( 'show_wordpress_edit' ) && ! $request->has_param( 'default_view' ) && ! $request->has_param( 'actions_first' ) && ! $request->has_param( 'actions_layout' ) && ! $request->has_param( 'default_column' ) && ! $request->has_param( 'default_order' ) && ! $request->has_param( 'term_default_column' ) && ! $request->has_param( 'term_default_order' ) && ! $request->has_param( 'active_bg' ) && ! $request->has_param( 'active_text' ) && ! $request->has_param( 'button_style' ) && ! $request->has_param( 'hierarchy_style' ) && ! $request->has_param( 'status_style' ) ) {
 						return new WP_Error( 'etch_hub_sort_missing_setting', __( 'Choose a setting to update.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
 					}
 					$colors = etch_hub_sort_heading_colors();
@@ -216,6 +217,18 @@ add_action(
 							return new WP_Error( 'etch_hub_sort_invalid_button_style', __( 'Choose a valid button style.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
 						}
 						if ( $custom_colors && etch_hub_sort_color_contrast( $button_background, $button_text ) < 4.5 ) {
+							return new WP_Error( 'etch_hub_sort_low_contrast', __( 'Choose colors with at least 4.5:1 text contrast.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
+						}
+					}
+					$status_style = $request->get_param( 'status_style' );
+					if ( $request->has_param( 'status_style' ) ) {
+						$status_group = is_array( $status_style ) ? ( $status_style['group'] ?? null ) : null;
+						$status_bg = $status_style['background'] ?? null;
+						$status_text = $status_style['text'] ?? null;
+						if ( ! is_string( $status_group ) || ! isset( etch_hub_sort_status_defaults()[ $status_group ] ) || ! is_string( $status_bg ) || ! is_string( $status_text ) || ! preg_match( '/^#[0-9a-fA-F]{6}$/', $status_bg ) || ! preg_match( '/^#[0-9a-fA-F]{6}$/', $status_text ) ) {
+							return new WP_Error( 'etch_hub_sort_invalid_status_style', __( 'Choose valid status colors.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
+						}
+						if ( etch_hub_sort_color_contrast( $status_bg, $status_text ) < 4.5 ) {
 							return new WP_Error( 'etch_hub_sort_low_contrast', __( 'Choose colors with at least 4.5:1 text contrast.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
 						}
 					}
@@ -280,6 +293,11 @@ add_action(
 						$styles[ $group ] = array( 'background' => strtolower( $button_background ), 'text' => strtolower( $button_text ), 'display' => $button_display, 'custom_colors' => $custom_colors );
 						update_option( 'etch_hub_sort_button_styles', $styles );
 					}
+					if ( $request->has_param( 'status_style' ) ) {
+						$styles = etch_hub_sort_status_styles();
+						$styles[ $status_group ] = array( 'background' => strtolower( $status_bg ), 'text' => strtolower( $status_text ) );
+						update_option( 'etch_hub_sort_status_styles', $styles );
+					}
 					if ( $request->has_param( 'hierarchy_style' ) ) {
 						update_option( 'etch_hub_sort_hierarchy_style', $hierarchy_style );
 					}
@@ -299,6 +317,7 @@ add_action(
 							'active_bg'      => $colors[0],
 							'active_text'    => $colors[1],
 							'button_styles'  => etch_hub_sort_button_styles(),
+							'status_styles' => etch_hub_sort_status_styles(),
 							'hierarchy_style' => etch_hub_sort_hierarchy_style(),
 						)
 					);
@@ -317,6 +336,7 @@ add_action(
 					'active_bg'      => array( 'type' => 'string', 'pattern' => '^#[0-9a-fA-F]{6}$' ),
 					'active_text'    => array( 'type' => 'string', 'pattern' => '^#[0-9a-fA-F]{6}$' ),
 					'button_style'   => array( 'type' => 'object' ),
+					'status_style' => array( 'type' => 'object' ),
 					'hierarchy_style' => array( 'type' => 'object' ),
 				),
 			)
@@ -604,12 +624,12 @@ add_action(
 					$post = get_post( $id );
 					$type = sanitize_key( (string) $request->get_param( 'type' ) );
 					$post_type = get_post_type_object( $type );
-					if ( ! $post || ! $post_type || $post->post_type !== $type || ! $post_type->show_in_rest || ! in_array( $post->post_status, array( 'publish', 'draft' ), true ) ) {
+					if ( ! $post || ! $post_type || $post->post_type !== $type || ! $post_type->show_in_rest || ! isset( etch_hub_sort_post_statuses()[ $post->post_status ] ) ) {
 						return new WP_Error( 'etch_hub_sort_missing_post', __( 'This item is no longer in the list.', 'etch-content-hub-sort' ), array( 'status' => 404 ) );
 					}
 					$status = sanitize_key( (string) $request->get_param( 'status' ) );
-					if ( 'publish' === $status && 'publish' !== $post->post_status && ! current_user_can( $post_type->cap->publish_posts ) ) {
-						return new WP_Error( 'etch_hub_sort_cannot_publish', __( 'You cannot publish this content type.', 'etch-content-hub-sort' ), array( 'status' => 403 ) );
+					if ( ! isset( etch_hub_sort_post_statuses()[ $status ] ) || ( $status !== $post->post_status && ! isset( etch_hub_sort_quick_edit_statuses( $post_type )[ $status ] ) ) ) {
+						return new WP_Error( 'etch_hub_sort_invalid_status', __( 'This status is unavailable for this content type or your account.', 'etch-content-hub-sort' ), array( 'status' => 403 ) );
 					}
 					$parent_id = absint( $request->get_param( 'parent' ) );
 					$parent_error = etch_hub_sort_parent_error( $post_type, $parent_id, $id );
@@ -643,16 +663,11 @@ add_action(
 						$changes['post_date_gmt'] = get_gmt_from_date( $changes['post_date'] );
 						$changes['edit_date'] = true;
 					}
-					$effective_date = $changes['post_date'] ?? $post->post_date;
-					$effective_datetime = DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $effective_date, wp_timezone() );
-					if ( 'publish' === $status && $effective_datetime && $effective_datetime->getTimestamp() > time() ) {
-						return new WP_Error( 'etch_hub_sort_future_date', __( 'Published items need a date that is not in the future. Choose Draft for a future date.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
-					}
 					$updated = wp_update_post( $changes, true );
 					if ( is_wp_error( $updated ) || ! $updated ) {
 						return is_wp_error( $updated ) ? $updated : new WP_Error( 'etch_hub_sort_update_failed', __( 'Could not update the item.', 'etch-content-hub-sort' ), array( 'status' => 500 ) );
 					}
-					return rest_ensure_response( array( 'id' => $id, 'parent' => $parent_id, 'status' => $status ) );
+					return rest_ensure_response( array( 'id' => $id, 'parent' => $parent_id, 'status' => get_post_status( $id ) ) );
 				},
 				'args'                => array(
 					'id'     => array( 'type' => 'integer', 'minimum' => 1, 'required' => true ),
@@ -660,7 +675,7 @@ add_action(
 					'title'  => array( 'type' => 'string' ),
 					'slug'   => array( 'type' => 'string' ),
 					'date'   => array( 'type' => 'string' ),
-					'status' => array( 'type' => 'string', 'enum' => array( 'draft', 'publish' ), 'required' => true ),
+					'status' => array( 'type' => 'string', 'required' => true ),
 					'parent' => array( 'type' => 'integer', 'minimum' => 0, 'default' => 0 ),
 				),
 			)
@@ -677,7 +692,7 @@ add_action(
 					$id   = absint( $request['id'] );
 					$post = get_post( $id );
 					$type = sanitize_key( (string) $request->get_param( 'type' ) );
-					if ( ! $post || $post->post_type !== $type || ! in_array( $post->post_status, array( 'publish', 'draft' ), true ) ) {
+					if ( ! $post || $post->post_type !== $type || ! isset( etch_hub_sort_post_statuses()[ $post->post_status ] ) ) {
 						return new WP_Error( 'etch_hub_sort_missing_post', __( 'This item is no longer in the list.', 'etch-content-hub-sort' ), array( 'status' => 404 ) );
 					}
 					if ( ! EMPTY_TRASH_DAYS ) {
@@ -730,7 +745,8 @@ add_action(
 					$parent    = $hierarchy ? absint( $request->get_param( 'parent' ) ) : 0;
 					$args     = array(
 						'post_type'           => $type,
-						'post_status'         => array( 'publish', 'draft' ),
+						'post_status'         => array_keys( etch_hub_sort_post_statuses() ),
+						'perm'                => 'readable',
 						'posts_per_page'      => $per_page,
 						'paged'               => $page,
 						'orderby'             => $sorts[ $sort ],
@@ -755,21 +771,18 @@ add_action(
 					remove_filter( 'posts_orderby', $status_order, 10 );
 					$parents_with_children = array();
 					if ( $hierarchy && $query->posts ) {
-						global $wpdb;
-						$parent_ids = array_map( 'intval', wp_list_pluck( $query->posts, 'ID' ) );
-						$placeholders = implode( ', ', array_fill( 0, count( $parent_ids ), '%d' ) );
-						$parent_query = $wpdb->prepare(
-							// The interpolated tokens are only %d placeholders, with each ID bound below.
-							// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-							"SELECT DISTINCT post_parent FROM {$wpdb->posts} WHERE post_type = %s AND post_status IN ('publish', 'draft') AND post_parent IN ({$placeholders})",
-							array_merge( array( $type ), $parent_ids )
+						$parents_with_children = get_posts(
+							array(
+								'post_type' => $type,
+								'post_status' => array_keys( etch_hub_sort_post_statuses() ),
+								'perm' => 'readable',
+								'post_parent__in' => array_map( 'intval', wp_list_pluck( $query->posts, 'ID' ) ),
+								'posts_per_page' => -1,
+								'fields' => 'id=>parent',
+								'suppress_filters' => false,
+							)
 						);
-						// One bounded query avoids querying once per row. Results change with post edits, so cross-request caching risks stale hierarchy indicators.
-						$parents_with_children = array_map(
-							'intval',
-							// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
-							$wpdb->get_col( $parent_query )
-						);
+						$parents_with_children = array_values( array_unique( array_map( 'intval', $parents_with_children ) ) );
 					}
 
 					$items = array_map(
@@ -806,6 +819,7 @@ add_action(
 							'parent'   => $parent,
 							'can_create' => current_user_can( $post_type->cap->create_posts ),
 							'can_publish' => current_user_can( $post_type->cap->publish_posts ),
+							'quick_edit_statuses' => etch_hub_sort_quick_edit_statuses( $post_type ),
 						)
 					);
 				},
@@ -834,7 +848,7 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '1.7.9';
+		$version = '1.7.15';
 		$types   = array();
 		$hierarchical_types = array();
 		$taxonomies = array();
@@ -871,6 +885,8 @@ add_action(
 					'assetUrl' => esc_url_raw( $url . 'assets/' ),
 					'nonce'    => wp_create_nonce( 'wp_rest' ),
 					'siteTimezone' => wp_timezone_string(),
+					'statusLabels' => wp_list_pluck( get_post_stati( array(), 'objects' ), 'label' ),
+					'nativeStatuses' => array_values( get_post_stati( array( '_builtin' => true ) ) ),
 					'types'    => $types,
 					'taxonomies' => $taxonomies,
 					'hierarchicalTypes' => $hierarchical_types,
@@ -887,6 +903,8 @@ add_action(
 					'activeBg' => $heading_colors[0],
 					'activeText' => $heading_colors[1],
 					'buttonStyles' => etch_hub_sort_button_styles(),
+					'statusStyles' => etch_hub_sort_status_styles(),
+					'statusDefaults' => etch_hub_sort_status_defaults(),
 					'hierarchyStyle' => etch_hub_sort_hierarchy_style(),
 					'canManage' => current_user_can( 'manage_options' ),
 				)

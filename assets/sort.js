@@ -3,6 +3,16 @@
   const config = window.etchHubSortConfig;
   if (!config?.endpoint || !config?.nonce) return;
   const { __, sprintf } = window.wp.i18n;
+  const statusLabelFor = status => config.statusLabels?.[status] ?? status ?? '';
+  const isCustomStatus = status => !(config.nativeStatuses || ['publish', 'future', 'draft', 'pending', 'private', 'trash', 'auto-draft', 'inherit']).includes(status);
+  const applyStatusColors = () => {
+    for (const [group, style] of Object.entries(config.statusStyles || {})) {
+      for (const [property, value] of Object.entries({ bg: style.background, text: style.text, 'picker-text': style.picker_text })) {
+        document.documentElement.style.setProperty(`--etch-status-${group}-${property}`, value);
+      }
+    }
+  };
+  applyStatusColors();
 
   const columns = [
     ['id', __('ID', 'etch-content-hub-sort')], ['title', __('Title', 'etch-content-hub-sort')], ['slug', __('Slug', 'etch-content-hub-sort')],
@@ -266,16 +276,32 @@
     }
 
     const statusLabel = element('label', '', __('Status', 'etch-content-hub-sort'));
-    const statusSelect = element('select', 'etch-hub-sort-edit-input');
+    const statusSelect = element('select', 'etch-hub-sort-edit-input etch-hub-sort-status-select');
     statusSelect.id = 'etch-hub-sort-edit-status';
     statusLabel.htmlFor = statusSelect.id;
-    for (const [value, label] of [['draft', __('Draft', 'etch-content-hub-sort')], ['publish', __('Publish', 'etch-content-hub-sort')]]) {
+    const statusOptions = creating
+      ? Object.fromEntries(['draft', 'publish'].map(value => [value, statusLabelFor(value)]))
+      : { ...(current.data?.quick_edit_statuses || {}) };
+    if (item?.status && !Object.prototype.hasOwnProperty.call(statusOptions, item.status)) statusOptions[item.status] = statusLabelFor(item.status);
+    const nativeGroup = element('optgroup');
+    nativeGroup.label = __('WordPress', 'etch-content-hub-sort');
+    const customGroup = element('optgroup');
+    customGroup.label = __('Custom statuses', 'etch-content-hub-sort');
+    for (const [value, label] of Object.entries(statusOptions)) {
       const option = element('option', '', label);
       option.value = value;
       if (value === 'publish' && !current.data?.can_publish) option.disabled = true;
-      statusSelect.appendChild(option);
+      (isCustomStatus(value) ? customGroup : nativeGroup).appendChild(option);
     }
+    if (nativeGroup.children.length) statusSelect.appendChild(nativeGroup);
+    if (customGroup.children.length) statusSelect.appendChild(customGroup);
     statusSelect.value = item?.status || 'draft';
+    const updateStatusAppearance = () => {
+      statusSelect.dataset.statusKind = isCustomStatus(statusSelect.value) ? 'custom'
+        : statusSelect.value;
+    };
+    statusSelect.addEventListener('change', updateStatusAppearance);
+    updateStatusAppearance();
     const statusField = element('div', 'etch-hub-sort-edit-field');
     statusField.append(statusLabel, statusSelect);
     form.appendChild(statusField);
@@ -786,11 +812,12 @@
       }
       for (const [key] of activeColumns) {
         const value = key === 'id' ? `#${item.id}`
+          : key === 'status' ? statusLabelFor(item.status)
           : key === 'parent' ? item.parent_title || (item.parent ? `#${item.parent}` : '—')
           : key === 'created' || key === 'modified' ? formatDate(item[key])
           : item[key] ?? '';
         const cell = element('td', `etch-hub-sort-cell-${key}`);
-        if (key === 'status') cell.appendChild(element('span', `etch-hub-sort-status etch-hub-sort-status-${item.status}`, value));
+        if (key === 'status') cell.appendChild(element('span', `etch-hub-sort-status etch-hub-sort-status-${item.status}${isCustomStatus(item.status) ? ' etch-hub-sort-status-custom' : ''}`, value));
         else if (key === 'id' && hierarchy) {
           const id = element('div', 'etch-hub-sort-tree-id');
           id.style.setProperty('--etch-hub-depth', depth);
@@ -1238,22 +1265,27 @@
     const generalTab = button(__('General', 'etch-content-hub-sort'), () => showSection('general'), 'etch-hub-sort-manager-nav-button');
     const hierarchyTab = button(__('Hierarchy', 'etch-content-hub-sort'), () => showSection('hierarchy'), 'etch-hub-sort-manager-nav-button');
     const buttonsTab = button(__('Buttons', 'etch-content-hub-sort'), () => showSection('buttons'), 'etch-hub-sort-manager-nav-button');
-    nav.append(generalTab, hierarchyTab, buttonsTab);
+    const statusesTab = button(__('Status colors', 'etch-content-hub-sort'), () => showSection('statuses'), 'etch-hub-sort-manager-nav-button');
+    nav.append(generalTab, hierarchyTab, buttonsTab, statusesTab);
     sidebar.append(header, nav);
     const body = element('div', 'etch-hub-sort-manager-body');
     const content = element('div', 'etch-hub-sort-settings-panel');
     const hierarchyContent = element('div', 'etch-hub-sort-hierarchy-settings-panel');
     const buttonContent = element('div', 'etch-hub-sort-button-settings-panel');
-    body.append(content, hierarchyContent, buttonContent);
+    const statusContent = element('div', 'etch-hub-sort-button-settings-panel etch-hub-sort-status-settings-panel');
+    body.append(content, hierarchyContent, buttonContent, statusContent);
     panel.append(sidebar, body);
     document.body.appendChild(panel);
     const showSection = section => {
       content.hidden = section !== 'general';
       hierarchyContent.hidden = section !== 'hierarchy';
       buttonContent.hidden = section !== 'buttons';
+      statusContent.hidden = section !== 'statuses';
       generalTab.setAttribute('aria-current', section === 'general' ? 'page' : 'false');
       hierarchyTab.setAttribute('aria-current', section === 'hierarchy' ? 'page' : 'false');
       buttonsTab.setAttribute('aria-current', section === 'buttons' ? 'page' : 'false');
+      statusesTab.setAttribute('aria-current', section === 'statuses' ? 'page' : 'false');
+      body.scrollTop = 0;
     };
     settingsManager = { panel, back, launch: null, trigger: null };
     showSection('general');
@@ -1811,6 +1843,80 @@
       field.appendChild(input);
       return { field, input };
     };
+    const statusIntro = element('div', 'etch-hub-sort-manager-intro');
+    statusIntro.append(
+      element('h2', '', __('Status colors', 'etch-content-hub-sort')),
+      element('p', '', __('Set the background and text colors used by status badges and the status picker. Third-party statuses share one color pair.', 'etch-content-hub-sort'))
+    );
+    const statusList = element('div', 'etch-hub-sort-settings-group-list');
+    statusContent.append(statusIntro, statusList);
+    for (const [group, label] of [
+      ['publish', __('Published', 'etch-content-hub-sort')],
+      ['draft', __('Draft', 'etch-content-hub-sort')],
+      ['future', __('Scheduled', 'etch-content-hub-sort')],
+      ['pending', __('Pending Review', 'etch-content-hub-sort')],
+      ['private', __('Private', 'etch-content-hub-sort')],
+      ['custom', __('Third-party statuses', 'etch-content-hub-sort')],
+    ]) {
+      const card = element('details', 'etch-hub-sort-button-card');
+      const summary = element('summary', 'etch-hub-sort-button-card-summary');
+      summary.appendChild(element('span', 'etch-hub-sort-button-card-title', label));
+      const preview = element('span', 'etch-hub-sort-status', group === 'custom' ? __('Custom status', 'etch-content-hub-sort') : label);
+      summary.appendChild(preview);
+      const editor = element('div', 'etch-hub-sort-button-card-editor');
+      const colors = element('div', 'etch-hub-sort-button-card-colors');
+      const bg = makeColorInput(__('Background', 'etch-content-hub-sort'), config.statusStyles[group].background);
+      const fg = makeColorInput(__('Text', 'etch-content-hub-sort'), config.statusStyles[group].text);
+      bg.input.setAttribute('aria-label', sprintf(__('%s background', 'etch-content-hub-sort'), label));
+      fg.input.setAttribute('aria-label', sprintf(__('%s text', 'etch-content-hub-sort'), label));
+      const bgHex = element('code', 'etch-hub-sort-color-code');
+      const fgHex = element('code', 'etch-hub-sort-color-code');
+      bg.field.appendChild(bgHex);
+      fg.field.appendChild(fgHex);
+      colors.append(bg.field, fg.field);
+      const notice = element('span', 'etch-hub-sort-setting-status');
+      notice.setAttribute('role', 'status');
+      const save = button(__('Save', 'etch-content-hub-sort'), async () => {
+        save.disabled = true;
+        notice.textContent = __('Saving…', 'etch-content-hub-sort');
+        try {
+          const result = await saveSettings({ status_style: { group, background: bg.input.value, text: fg.input.value } });
+          config.statusStyles = result.status_styles;
+          applyStatusColors();
+          updateStatusPreview();
+          notice.textContent = __('Saved', 'etch-content-hub-sort');
+        } catch (error) {
+          updateStatusPreview();
+          notice.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
+        }
+      }, 'etch-hub-sort-button-save');
+      const reset = button(__('Use default colors', 'etch-content-hub-sort'), () => {
+        bg.input.value = config.statusDefaults[group].background;
+        fg.input.value = config.statusDefaults[group].text;
+        updateStatusPreview();
+      });
+      const updateStatusPreview = () => {
+        const ratio = contrastRatio(bg.input.value, fg.input.value);
+        const changed = bg.input.value !== config.statusStyles[group].background || fg.input.value !== config.statusStyles[group].text;
+        preview.style.backgroundColor = bg.input.value;
+        preview.style.color = fg.input.value;
+        bgHex.textContent = bg.input.value.toUpperCase();
+        fgHex.textContent = fg.input.value.toUpperCase();
+        bg.input.setAttribute('aria-invalid', String(ratio < 4.5));
+        fg.input.setAttribute('aria-invalid', String(ratio < 4.5));
+        save.disabled = !changed || ratio < 4.5;
+        notice.textContent = ratio < 4.5
+          ? sprintf(__('Contrast %s:1 is too low. Choose at least 4.5:1.', 'etch-content-hub-sort'), ratio.toFixed(2))
+          : changed ? __('Unsaved changes', 'etch-content-hub-sort') : '';
+      };
+      for (const input of [bg.input, fg.input]) input.addEventListener('input', updateStatusPreview);
+      const actions = element('div', 'etch-hub-sort-button-card-actions');
+      actions.append(notice, reset, save);
+      editor.append(colors, actions);
+      card.append(summary, editor);
+      statusList.appendChild(card);
+      updateStatusPreview();
+    }
     for (const [group, label] of buttonGroups) {
       const saved = config.buttonStyles[group];
       const card = element('details', 'etch-hub-sort-button-card');

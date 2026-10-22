@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.7.9
+Stable tag: 1.7.15
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -16,9 +16,11 @@ This plugin adds a browse table to Etch's Content Hub. It searches and sorts acr
 
 Taxonomy terms have a browse table with Name, Slug, Description, Count, and Parent where applicable. Search, sorting, and pagination work across all terms. A separate setting chooses the initial taxonomy sort column and direction. Hierarchical taxonomies can be browsed as a tree, and flat search results identify each child's parent. New term and Quick edit let you set the name, slug, description, and parent. Delete permanently removes a term after confirmation. WordPress moves its children up one level. Terms do not have WordPress drafts or Trash.
 
+The Status colors section has its own settings tab. Set background and text colors separately for Published, Draft, Scheduled, Pending Review, and Private, plus one shared pair for all third-party statuses. The existing colors are the defaults. Each group has a preview and a Use default colors action; click Save to apply changes. Text colors must meet 4.5:1 contrast. Saved colors apply to badges and the status picker.
+
 The Hierarchy section can customize parent and child row backgrounds, text, left borders, carets, and border width. Existing colors remain until custom hierarchy styling is enabled. Row text must meet 4.5:1 contrast, and borders and carets must meet 3:1 contrast against their row backgrounds.
 
-The browse table also has a New item button with Draft or Publish status. For hierarchical content types, choose a parent while creating an item. Each existing item has Quick edit for changing its title, slug, date, status, and, for hierarchical types, its parent. If both title and slug were blank, entering a title suggests a slug; WordPress generates the saved slug unless the user edits that suggestion. Date and time use the site's timezone; a future date can be saved as a draft, but cannot be set to Publish from this table. The parent picker searches the full content type. WordPress permissions control which actions appear and which changes are accepted.
+The browse table also has a New item button with Draft or Published status. For hierarchical content types, choose a parent while creating an item. Each existing item has Quick edit for changing its title, slug, date, status, and, for hierarchical types, its parent. If both title and slug were blank, entering a title suggests a slug; WordPress generates the saved slug unless the user edits that suggestion. Date and time use the site's timezone; WordPress schedules published items with future dates. Quick edit offers Published, Scheduled, Private, Pending Review, Draft, and registered custom workflow statuses permitted for the current user. It honors the WordPress quick_edit_statuses filter. The parent picker searches the full content type. WordPress permissions control which actions appear and which changes are accepted.
 
 An Edit in WordPress button appears beside Open in Builder for posts and pages. It opens the WordPress editor in a new tab, including custom fields available there. Term rows also link to the WordPress term editor. The Table setting can hide these buttons; they are shown by default and only appear for items the user may edit.
 
@@ -51,6 +53,14 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 1.7.15 =
+
+* Use WordPress display labels for post statuses, including translated and customized labels.
+* Expand Quick edit to Scheduled, Private, Pending Review, and registered third-party statuses, honoring WordPress's quick_edit_statuses filter and publishing permissions.
+* Keep scheduled, pending, private, and custom-status items visible in the table while respecting private-content access, and let WordPress handle scheduling.
+* Add colored badges and a grouped status picker, with purple for third-party statuses.
+* Add a separate Status colors settings tab with background and text controls for each WordPress status and one shared third-party group. Preserve existing colors as defaults, with previews, resets, and 4.5:1 contrast validation.
 
 = 1.7.9 =
 
