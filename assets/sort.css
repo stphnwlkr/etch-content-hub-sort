@@ -412,6 +412,11 @@
 .etch-hub-sort-status-select[data-status-kind="private"] { background-color: var(--etch-status-private-bg, #363b48); color: var(--etch-status-private-picker-text, #cbd4e8); border-color: #606b81; }
 .etch-hub-sort-status-select[data-status-kind="custom"] { background-color: var(--etch-status-custom-bg, #3b2b56); color: var(--etch-status-custom-picker-text, #d3b8ff); border-color: #71548f; }
 .etch-hub-sort-status-select optgroup, .etch-hub-sort-status-select option { background: #303034; color: #f3f3f4; }
+.etch-hub-sort-transfer-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.85rem; padding: 1.3rem; margin-bottom: 1rem; border: 1px solid #3b3b40; border-radius: 10px; background: #111113; }
+.etch-hub-sort-transfer-card h3, .etch-hub-sort-transfer-card p { margin: 0; }
+.etch-hub-sort-transfer-card p { line-height: 1.5; }
+.etch-hub-sort-transfer-confirm { display: flex; align-items: flex-start; gap: 0.6rem; line-height: 1.5; }
+.etch-hub-sort-transfer-card [hidden] { display: none !important; }
 .etch-hub-sort-paging { justify-content: flex-end; padding: 0.6rem 0; }
 .etch-hub-sort-empty { text-align: center; }
 .content-hub__content .datagrid-wrapper[hidden],
@@ -444,12 +449,14 @@
 .etch-hub-sort-bar-trigger { position: relative !important; display: flex !important; align-items: center; justify-content: center; padding: 0 !important; }
 .etch-hub-sort-bar-trigger[hidden] { display: none !important; }
 .etch-hub-sort-bar-icon { position: absolute; inset: 50% auto auto 50%; display: block; width: 22px; height: 22px; max-width: none; margin: 0; transform: translate(-50%, -50%); object-fit: contain; filter: invert(1); pointer-events: none; }
-.etch-hub-sort-manager-sidebar { min-height: 0; border-right: 1px solid var(--hub-line); background: var(--hub-surface); }
-.etch-hub-sort-manager-header { display: flex; align-items: center; gap: 10px; min-height: 57px; padding: 0 12px; border-bottom: 1px solid var(--hub-line); }
+.etch-hub-sort-manager-sidebar { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--hub-line); background: var(--hub-surface); }
+.etch-hub-sort-manager-header { display: flex; flex-shrink: 0; align-items: center; gap: 10px; min-height: 57px; padding: 0 12px; border-bottom: 1px solid var(--hub-line); }
 .etch-hub-sort-manager-header h1 { margin: 0; font-size: var(--e-hub-title-font-size, 16px); font-weight: 400; }
+.etch-hub-sort-manager-sidebar-footer { display: flex; flex-shrink: 0; justify-content: center; margin-top: auto; padding: 20px 16px; }
+.etch-hub-sort-version-pill { display: inline-flex; align-items: center; padding: 2px 7px; border: 1px solid #55555f; border-radius: 999px; background: #35353b; color: #e2e2ea; font-size: 11px; font-weight: 500; line-height: 1.4; white-space: nowrap; }
 .etch-hub-sort-manager-back { flex: 0 0 28px; width: 28px; height: 28px; padding: 0; border: 1px solid var(--hub-line); border-radius: var(--e-border-radius, 6px); background: transparent; color: inherit; cursor: pointer; font-size: 0; }
 .etch-hub-sort-manager-back::before { content: ''; display: block; width: 16px; height: 16px; margin: auto; background: currentColor; mask: url('ui-left.svg') center/contain no-repeat; }
-.etch-hub-sort-manager-nav { display: flex; flex-direction: column; gap: 4px; padding: 16px; }
+.etch-hub-sort-manager-nav { display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow-y: auto; padding: 16px; }
 .etch-hub-sort-manager-nav-button { width: 100%; padding: 9px 12px; border: 0; border-radius: var(--e-border-radius, 6px); background: transparent; color: var(--hub-muted); font: inherit; text-align: left; cursor: pointer; }
 .etch-hub-sort-manager-nav-button:hover, .etch-hub-sort-manager-nav-button[aria-current="page"] { background: var(--hub-raised); color: var(--hub-text); }
 .etch-hub-sort-manager-back:focus-visible, .etch-hub-sort-manager-nav-button:focus-visible, .etch-hub-sort-button-save:focus-visible { outline: 2px solid #8fc9ff; outline-offset: 2px; }

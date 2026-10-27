@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Etch Content Hub Sort
  * Description: Adds search, full-result sorting, pagination, and hierarchy browsing to Etch's Content Hub.
- * Version: 1.7.15
+ * Version: 1.7.18
  * Requires at least: 5.9
  * Requires PHP: 8.1
  * Update URI: https://github.com/stphnwlkr/etch-content-hub-sort
@@ -18,6 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/includes/github-updates.php';
 require_once __DIR__ . '/includes/statuses.php';
+require_once __DIR__ . '/includes/settings-transfer.php';
 
 /** Return the saved layout, including the earlier start/end switch. */
 function etch_hub_sort_actions_layout(): string {
@@ -249,6 +250,9 @@ add_action(
 							}
 						}
 					}
+					if ( $request->get_param( 'validate_only' ) ) {
+						return rest_ensure_response( array( 'valid' => true ) );
+					}
 					if ( $request->has_param( 'enabled' ) ) {
 						update_option( 'etch_hub_sort_enabled', $request->get_param( 'enabled' ) ? '1' : '0' );
 					}
@@ -323,6 +327,7 @@ add_action(
 					);
 				},
 				'args'                => array(
+					'validate_only' => array( 'type' => 'boolean', 'default' => false ),
 					'enabled'       => array( 'type' => 'boolean' ),
 					'show_sidebar_icon' => array( 'type' => 'boolean' ),
 					'show_wordpress_edit' => array( 'type' => 'boolean' ),
@@ -848,7 +853,7 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '1.7.15';
+		$version = '1.7.18';
 		$types   = array();
 		$hierarchical_types = array();
 		$taxonomies = array();
@@ -878,10 +883,12 @@ add_action(
 			'window.etchHubSortConfig = ' . wp_json_encode(
 				array(
 					'endpoint' => esc_url_raw( rest_url( 'etch-hub-sort/v1/posts' ) ),
+					'version' => get_file_data( __FILE__, array( 'version' => 'Version' ) )['version'],
 					'createEndpoint' => esc_url_raw( rest_url( 'etch-hub-sort/v1/posts/create' ) ),
 					'termsEndpoint' => esc_url_raw( rest_url( 'etch-hub-sort/v1/terms' ) ),
 					'termCreateEndpoint' => esc_url_raw( rest_url( 'etch-hub-sort/v1/terms/create' ) ),
 					'settingsEndpoint' => esc_url_raw( rest_url( 'etch-hub-sort/v1/settings' ) ),
+					'transferEndpoint' => esc_url_raw( rest_url( 'etch-hub-sort/v1/settings/transfer' ) ),
 					'assetUrl' => esc_url_raw( $url . 'assets/' ),
 					'nonce'    => wp_create_nonce( 'wp_rest' ),
 					'siteTimezone' => wp_timezone_string(),

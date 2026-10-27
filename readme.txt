@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.7.15
+Stable tag: 1.7.18
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -15,6 +15,8 @@ Adds search, sorting, pagination, and hierarchy browsing to posts and taxonomies
 This plugin adds a browse table to Etch's Content Hub. It searches and sorts across the full result set and offers 25, 50, or 100 items per page. An Etch table button opens the original Etch view for inline editing and new item creation. A dedicated Hub search and sort panel turns the feature on or off, chooses the view used when the builder loads, chooses the initial sort column and direction, and sets the active heading's background and text colors. A view selected during a builder session stays active across content types and taxonomies until switched back or reloaded. The General section can hide its left sidebar shortcut while search and sorting is active; settings remain available in the Content Hub toolbar. Its Buttons section offers individual background and text or icon colors, plus icon only, icon and text, or text only display, for buttons in the browse table. Color pairs must meet 4.5:1 text contrast. The General section also offers four Actions layouts: both at the end (default), both at the start, Open after Title with Trash last, or Open first with Trash last.
 
 Taxonomy terms have a browse table with Name, Slug, Description, Count, and Parent where applicable. Search, sorting, and pagination work across all terms. A separate setting chooses the initial taxonomy sort column and direction. Hierarchical taxonomies can be browsed as a tree, and flat search results identify each child's parent. New term and Quick edit let you set the name, slug, description, and parent. Delete permanently removes a term after confirmation. WordPress moves its children up one level. Terms do not have WordPress drafts or Trash.
+
+The Settings transfer tab exports all saved plugin settings to a JSON file and imports a complete export on another site. It includes general preferences, sorting defaults, button appearance, hierarchy styling, and status colors. Import replaces the destination site's plugin settings after validating every setting, including color contrast. Export a backup first if needed, then choose the file, confirm replacement, and select Import settings. Reload the builder after importing. Only administrators who can manage site options can transfer settings. Content, credentials, site URLs, and update caches are not included.
 
 The Status colors section has its own settings tab. Set background and text colors separately for Published, Draft, Scheduled, Pending Review, and Private, plus one shared pair for all third-party statuses. The existing colors are the defaults. Each group has a preview and a Use default colors action; click Save to apply changes. Text colors must meet 4.5:1 contrast. Saved colors apply to badges and the status picker.
 
@@ -53,6 +55,12 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 1.7.18 =
+
+* Add a Settings transfer tab to export all saved plugin settings and import them on another site.
+* Validate the complete import before changing settings, including color contrast, supported values, and administrator permissions.
+* Show the installed plugin version in a pill centered at the bottom of the settings sidebar.
 
 = 1.7.15 =
 

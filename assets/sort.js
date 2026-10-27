@@ -1259,6 +1259,8 @@
       target?.focus();
     }, 'etch-hub-sort-manager-back');
     const title = element('h1', '', __('Hub search and sort', 'etch-content-hub-sort'));
+    const versionPill = element('span', 'etch-hub-sort-version-pill', `v${config.version}`);
+    versionPill.setAttribute('aria-label', sprintf(__('Installed version %s', 'etch-content-hub-sort'), config.version));
     header.append(back, title);
     const nav = element('nav', 'etch-hub-sort-manager-nav');
     nav.setAttribute('aria-label', __('Hub settings sections', 'etch-content-hub-sort'));
@@ -1266,14 +1268,18 @@
     const hierarchyTab = button(__('Hierarchy', 'etch-content-hub-sort'), () => showSection('hierarchy'), 'etch-hub-sort-manager-nav-button');
     const buttonsTab = button(__('Buttons', 'etch-content-hub-sort'), () => showSection('buttons'), 'etch-hub-sort-manager-nav-button');
     const statusesTab = button(__('Status colors', 'etch-content-hub-sort'), () => showSection('statuses'), 'etch-hub-sort-manager-nav-button');
-    nav.append(generalTab, hierarchyTab, buttonsTab, statusesTab);
-    sidebar.append(header, nav);
+    const transferTab = button(__('Settings transfer', 'etch-content-hub-sort'), () => showSection('transfer'), 'etch-hub-sort-manager-nav-button');
+    nav.append(generalTab, hierarchyTab, buttonsTab, statusesTab, transferTab);
+    const sidebarFooter = element('div', 'etch-hub-sort-manager-sidebar-footer');
+    sidebarFooter.appendChild(versionPill);
+    sidebar.append(header, nav, sidebarFooter);
     const body = element('div', 'etch-hub-sort-manager-body');
     const content = element('div', 'etch-hub-sort-settings-panel');
     const hierarchyContent = element('div', 'etch-hub-sort-hierarchy-settings-panel');
     const buttonContent = element('div', 'etch-hub-sort-button-settings-panel');
     const statusContent = element('div', 'etch-hub-sort-button-settings-panel etch-hub-sort-status-settings-panel');
-    body.append(content, hierarchyContent, buttonContent, statusContent);
+    const transferContent = element('div', 'etch-hub-sort-button-settings-panel');
+    body.append(content, hierarchyContent, buttonContent, statusContent, transferContent);
     panel.append(sidebar, body);
     document.body.appendChild(panel);
     const showSection = section => {
@@ -1281,10 +1287,12 @@
       hierarchyContent.hidden = section !== 'hierarchy';
       buttonContent.hidden = section !== 'buttons';
       statusContent.hidden = section !== 'statuses';
+      transferContent.hidden = section !== 'transfer';
       generalTab.setAttribute('aria-current', section === 'general' ? 'page' : 'false');
       hierarchyTab.setAttribute('aria-current', section === 'hierarchy' ? 'page' : 'false');
       buttonsTab.setAttribute('aria-current', section === 'buttons' ? 'page' : 'false');
       statusesTab.setAttribute('aria-current', section === 'statuses' ? 'page' : 'false');
+      transferTab.setAttribute('aria-current', section === 'transfer' ? 'page' : 'false');
       body.scrollTop = 0;
     };
     settingsManager = { panel, back, launch: null, trigger: null };
@@ -1810,6 +1818,103 @@
       return invalidFields;
     }
     updateHierarchyPreview();
+
+    const transferIntro = element('div', 'etch-hub-sort-manager-intro');
+    transferIntro.append(element('h2', '', __('Settings transfer', 'etch-content-hub-sort')),
+      element('p', '', __('Copy your Etch Content Hub Sort settings to another site, or keep a backup.', 'etch-content-hub-sort')));
+    const exportCard = element('section', 'etch-hub-sort-transfer-card');
+    const exportNotice = element('p', 'etch-hub-sort-setting-status');
+    exportNotice.setAttribute('role', 'status');
+    const exportButton = button(__('Export settings', 'etch-content-hub-sort'), async () => {
+      exportButton.disabled = true;
+      exportNotice.textContent = __('Preparing download…', 'etch-content-hub-sort');
+      try {
+        const response = await fetch(config.transferEndpoint, { credentials: 'same-origin', headers: { 'X-WP-Nonce': config.nonce } });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || __('Could not export settings.', 'etch-content-hub-sort'));
+        const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+        const link = element('a');
+        link.href = url;
+        link.download = 'etch-content-hub-sort-settings.json';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        exportNotice.textContent = __('Settings file downloaded.', 'etch-content-hub-sort');
+      } catch (error) {
+        exportNotice.textContent = error.message || __('Could not export settings.', 'etch-content-hub-sort');
+      } finally { exportButton.disabled = false; }
+    });
+    exportCard.append(element('h3', '', __('Export', 'etch-content-hub-sort')),
+      element('p', '', __('Download all saved settings, including general preferences, button appearance, hierarchy styling, and status colors.', 'etch-content-hub-sort')), exportButton, exportNotice);
+    const importCard = element('section', 'etch-hub-sort-transfer-card');
+    const fileLabel = element('label', '', __('Settings file', 'etch-content-hub-sort'));
+    const fileInput = element('input', 'etch-hub-sort-edit-input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json,application/json';
+    fileInput.id = 'etch-hub-sort-import-file';
+    fileLabel.htmlFor = fileInput.id;
+    const importNotice = element('p', 'etch-hub-sort-setting-status');
+    importNotice.setAttribute('role', 'status');
+    const confirmLabel = element('label', 'etch-hub-sort-transfer-confirm');
+    const confirmImport = element('input');
+    confirmImport.type = 'checkbox';
+    confirmLabel.append(confirmImport, element('span', '', __('Replace this site’s plugin settings with the selected file.', 'etch-content-hub-sort')));
+    let importDocument = null;
+    let fileGeneration = 0;
+    const reloadButton = button(__('Reload builder', 'etch-content-hub-sort'), () => window.location.reload());
+    reloadButton.hidden = true;
+    const importButton = button(__('Import settings', 'etch-content-hub-sort'), async () => {
+      if (!importDocument || !confirmImport.checked) return;
+      importButton.disabled = true;
+      fileInput.disabled = true;
+      confirmImport.disabled = true;
+      importNotice.textContent = __('Validating and importing…', 'etch-content-hub-sort');
+      try {
+        const response = await fetch(config.transferEndpoint, {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.nonce },
+          body: JSON.stringify({ document: importDocument }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || __('Could not import settings.', 'etch-content-hub-sort'));
+        importNotice.textContent = __('Settings imported. Save any unfinished page edits, then reload the builder to use the new settings.', 'etch-content-hub-sort');
+        reloadButton.hidden = false;
+        for (const tab of [generalTab, hierarchyTab, buttonsTab, statusesTab]) tab.disabled = true;
+      } catch (error) {
+        importNotice.textContent = error.message || __('Could not import settings.', 'etch-content-hub-sort');
+        fileInput.disabled = false;
+        confirmImport.disabled = false;
+        importButton.disabled = false;
+      }
+    });
+    importButton.disabled = true;
+    confirmImport.addEventListener('change', () => { importButton.disabled = !importDocument || !confirmImport.checked; });
+    fileInput.addEventListener('change', async () => {
+      const generation = ++fileGeneration;
+      importDocument = null;
+      confirmImport.checked = false;
+      importButton.disabled = true;
+      importNotice.textContent = '';
+      const file = fileInput.files[0];
+      if (!file) return;
+      try {
+        if (file.size > 262144) throw new Error(__('Settings files must be smaller than 256 KB.', 'etch-content-hub-sort'));
+        const data = JSON.parse(await file.text());
+        if (generation !== fileGeneration) return;
+        if (data?.plugin !== 'etch-content-hub-sort' || data.format_version !== 1 || !data.settings || typeof data.settings !== 'object' || Array.isArray(data.settings)) {
+          throw new Error(__('Choose a valid Etch Content Hub Sort settings export.', 'etch-content-hub-sort'));
+        }
+        importDocument = data;
+        importNotice.textContent = sprintf(__('Ready to import %s. All settings will be validated before changes are made.', 'etch-content-hub-sort'), file.name);
+      } catch (error) {
+        if (generation === fileGeneration) importNotice.textContent = error instanceof SyntaxError ? __('This file is not valid JSON.', 'etch-content-hub-sort') : error.message;
+      }
+    });
+    importCard.append(element('h3', '', __('Import', 'etch-content-hub-sort')),
+      element('p', '', __('Choose a settings export from this plugin. Import replaces all plugin settings on this site. Export a backup first if you want to keep the current setup.', 'etch-content-hub-sort')),
+      fileLabel, fileInput, confirmLabel, importButton, importNotice, reloadButton);
+    transferContent.append(transferIntro, exportCard, importCard);
 
     const buttonGroups = [
       ['new', __('New item', 'etch-content-hub-sort')],
