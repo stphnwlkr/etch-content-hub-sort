@@ -18,6 +18,10 @@
     const find = el('label','site-find'); find.append(el('span','search-icon'),search);
     const hint = el('span','site-hint'); hint.dataset.graph='hint'; hint.hidden=true;
     const spacer = el('span','spacer');
+    const itemHistory=[];
+    const groupStates=new Map();
+    const previousItem=button(__('Previous item','etch-content-hub-sort'),()=>{const previous=itemHistory.pop();if(previous)loadPage(previous.id,false);},'btn map-previous-item');
+    previousItem.hidden=true;
     const headerAction=button('×',()=>{
       if(mode==='site') {
         search.value='';
@@ -26,7 +30,7 @@
       } else window.etchHubContentPanel.close();
     },'icon-btn');
     search.addEventListener('input',()=>{headerAction.disabled=mode==='site'&&!search.value;});
-    header.append(button(__('Back to list','etch-content-hub-sort'),()=>window.etchHubContentPanel.openList(),'btn map-back-to-list'),icon,el('b','',__('Connections','etch-content-hub-sort')),spacer,hint,find,headerAction);
+    header.append(button(__('Back to list','etch-content-hub-sort'),()=>window.etchHubContentPanel.openList(),'btn map-back-to-list'),icon,el('b','',__('Connections','etch-content-hub-sort')),previousItem,spacer,hint,find,headerAction);
     const stage = el('div','graph-stage');
     const legend = el('footer','graph-legend');
     graph.append(header,stage,legend);
@@ -46,13 +50,13 @@
     const status=(text)=>{ stage.replaceChildren(el('p','v-hint',text)); };
     const destroyEngine=()=>{ if(engine){layouts.set(cacheKey,engine.layout());engine.destroy();engine=null;} };
     const fetchData=async(path,signal)=>{const response=await fetch(`${config.connectionsEndpoint}/${path}`,{credentials:'same-origin',headers:{'X-WP-Nonce':config.nonce},signal});const value=await response.json();if(!response.ok)throw new Error(value.message||__('Could not load map.','etch-content-hub-sort'));return value;};
-    function setMode(next){ mode=next;const actionLabel=mode==='site'?__('Clear search','etch-content-hub-sort'):__('Close map','etch-content-hub-sort');headerAction.setAttribute('aria-label',actionLabel);headerAction.title=actionLabel;headerAction.disabled=mode==='site'&&!search.value;pageTab.disabled=!mappedItemId;pageTab.setAttribute('aria-selected',String(mode==='page'));siteTab.setAttribute('aria-selected',String(mode==='site'));find.hidden=mode!=='site';hint.hidden=true;legend.hidden=mode==='site'; }
+    function setMode(next){ mode=next;previousItem.hidden=mode!=='page'||!itemHistory.length;previousItem.title=itemHistory.length?sprintf(__('Back to %s','etch-content-hub-sort'),itemHistory[itemHistory.length-1].title):'';const actionLabel=mode==='site'?__('Clear search','etch-content-hub-sort'):__('Close map','etch-content-hub-sort');headerAction.setAttribute('aria-label',actionLabel);headerAction.title=actionLabel;headerAction.disabled=mode==='site'&&!search.value;pageTab.disabled=!mappedItemId;pageTab.setAttribute('aria-selected',String(mode==='page'));siteTab.setAttribute('aria-selected',String(mode==='site'));find.hidden=mode!=='site';hint.hidden=true;legend.hidden=mode==='site'; }
     function begin(next){controller?.abort();controller=new AbortController();destroyEngine();setMode(next);details.replaceChildren();status(__('Loading…','etch-content-hub-sort'));return {seq:++sequence,signal:controller.signal};}
     function row(label,value){const r=el('div','gd-row');r.append(el('span','',label),el('b','',String(value)));return r;}
     function titleCard(label,color,sub){const card=el('div','selcard gd'),t=el('div','gd-title'),dot=el('i','dot');dot.style.background=color;t.append(dot,el('b','',label));card.append(t);if(sub)card.append(el('div','gd-sub',sub));return card;}
     function actions(node,card){
       const wrap=el('div','gd-actions');
-      if(mode==='site' && node.kind==='post') {
+      if((mode==='site' && node.kind==='post') || (mode==='page' && Number(node.id)!==mappedItemId)) {
         const id=Number(String(node.id).replace(/^post:/,''));
         if(id) wrap.append(button(__('View connections','etch-content-hub-sort'),()=>loadPage(id),'btn view-connections'));
       }
@@ -86,19 +90,56 @@
       stage.className='graph-stage';stage.removeAttribute('data-graph');
       const canvas=el('div','graph-canvas');svg('svg',{class:'graph-lines','aria-hidden':'true'},canvas);
       const grid=el('div','graph-grid');
-      const group=(key,label,classes)=>{const col=el('div',`gcol ${classes}`),title=el('div','gcol-title',label+' ');title.append(el('span','count',data[key].length));col.append(title);for(const n of data[key])col.append(pageCard(n,label));if(!data[key].length)col.append(el('div','gempty',__('None','etch-content-hub-sort')));return col;};
-      const center=el('div','gcol center');center.append(pageCard(data.center,'',true));const incoming=group('from',__('Linked from','etch-content-hub-sort'),'from');
-      if(data.used_by?.length || data.center.kind==='shared') {
-        const heading=el('div','gcol-title gcol-used-by-title',__('Used by','etch-content-hub-sort')+' ');heading.append(el('span','count',data.used_by?.length||0));incoming.append(heading);
-        for(const node of data.used_by||[])incoming.append(pageCard(node,__('Used by','etch-content-hub-sort')));
-        if(!data.used_by?.length)incoming.append(el('div','gempty',__('None','etch-content-hub-sort')));
-      }
-      grid.append(incoming,center,group('to',__('Links to','etch-content-hub-sort'),'to'));canvas.append(grid,group('uses',__('Uses','etch-content-hub-sort'),'uses row'));stage.replaceChildren(canvas);
-      legend.replaceChildren();for(const [cls,text]of [['here',__('Current item','etch-content-hub-sort')],['page',__('Content item','etch-content-hub-sort')],['shared',__('Shared (template, component)','etch-content-hub-sort')]]){const item=el('span');item.append(el('i',`dot ${cls}`),document.createTextNode(text));legend.append(item);}
+      // Large relationship groups are paged independently, so the center stays within reach.
+      const group=(key,label)=>{
+        const nodes=data[key]||[],section=el('section','connection-group');
+        section.dataset.connectionGroup=key;section.setAttribute('aria-label',label);
+        const heading=el('div','gcol-title',label+' ');heading.append(el('span','count',nodes.length));
+        const cards=el('div','connection-group-cards');section.append(heading);
+        const stateKey=`${data.center.id}:${key}`,saved=groupStates.get(stateKey);
+        let page=saved?.page||0,query=saved?.query||'',searchField=null;
+        const pageSize=5;
+        const pager=el('nav','connection-group-pager');pager.setAttribute('aria-label',sprintf(__('%s pagination','etch-content-hub-sort'),label));
+        const range=el('span','connection-group-range');range.setAttribute('role','status');
+        const previous=button('‹',()=>{page--;render();},'btn');
+        const next=button('›',()=>{page++;render();},'btn');
+        previous.setAttribute('aria-label',sprintf(__('Previous %s items','etch-content-hub-sort'),label));
+        next.setAttribute('aria-label',sprintf(__('Next %s items','etch-content-hub-sort'),label));
+        pager.append(previous,range,next);
+        if(nodes.length>pageSize){
+          searchField=el('input','connection-group-search');searchField.type='search';
+          searchField.value=query;
+          searchField.placeholder=__('Find in this group…','etch-content-hub-sort');
+          searchField.setAttribute('aria-label',sprintf(__('Search %s','etch-content-hub-sort'),label));
+          searchField.addEventListener('input',()=>{query=searchField.value.trim().toLocaleLowerCase();page=0;render();});
+          section.append(searchField);
+        }
+        section.append(cards);
+        if(nodes.length>pageSize)section.append(pager);
+        function render(){
+          const matches=nodes.filter(node=>!query||[node.title,node.path,node.type,node.id].join(' ').toLocaleLowerCase().includes(query));
+          const pages=Math.max(1,Math.ceil(matches.length/pageSize));page=Math.max(0,Math.min(page,pages-1));
+          groupStates.set(stateKey,{page,query});
+          cards.replaceChildren(...matches.slice(page*pageSize,(page+1)*pageSize).map(node=>pageCard(node,label)));
+          if(!matches.length)cards.append(el('div','gempty',query?__('No matching items','etch-content-hub-sort'):__('None','etch-content-hub-sort')));
+          range.textContent=matches.length?sprintf(__('%1$d–%2$d of %3$d','etch-content-hub-sort'),page*pageSize+1,Math.min((page+1)*pageSize,matches.length),matches.length):__('0 items','etch-content-hub-sort');
+          previous.disabled=page===0;next.disabled=page>=pages-1;
+          requestAnimationFrame(()=>{if(alive&&mode==='page')drawPage(root);});
+        }
+        render();return section;
+      };
+      const center=el('div','gcol center');center.append(pageCard(data.center,'',true));
+      const incoming=el('div','gcol from');incoming.append(group('from',__('Linked from','etch-content-hub-sort')));
+      if(data.used_by?.length||data.center.kind==='shared')incoming.append(group('used_by',__('Used by','etch-content-hub-sort')));
+      const outgoing=el('div','gcol to');outgoing.append(group('to',__('Links to','etch-content-hub-sort')));
+      const uses=el('div','gcol uses row');uses.append(group('uses',__('Uses','etch-content-hub-sort')));
+      center.append(uses);grid.append(incoming,center,outgoing);canvas.append(grid);stage.replaceChildren(canvas);
+      legend.replaceChildren();for(const [cls,text]of [['here',mappedItemId===editorItemId?__('Current item','etch-content-hub-sort'):__('Selected item','etch-content-hub-sort')],['page',__('Content item','etch-content-hub-sort')],['shared',__('Shared (template, component)','etch-content-hub-sort')]]){const item=el('span');item.append(el('i',`dot ${cls}`),document.createTextNode(text));legend.append(item);}
       pageSummary();requestAnimationFrame(()=>{if(!alive||mode!=='page')return;drawPage(root);stage.scrollLeft=(stage.scrollWidth-stage.clientWidth)/2;});
     }
-    async function loadPage(id){
+    async function loadPage(id,remember=true){
       if(!id)return;
+      if(remember&&mode==='page'&&data?.center&&data.center.id!==id)itemHistory.push({id:data.center.id,title:data.center.title});
       mappedItemId=id;
       pageTab.textContent=id===editorItemId?__('Current item','etch-content-hub-sort'):__('Selected item','etch-content-hub-sort');
       const request=begin('page');

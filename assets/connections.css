@@ -1039,3 +1039,26 @@
 }
 
 .etch-delta-map .icon-btn:disabled { opacity: .35; cursor: default; }
+
+/* Keep item maps readable when a shared resource has many relationships. */
+.etch-delta-map .graph-canvas { min-width: 700px; gap: 40px; }
+.etch-delta-map .graph-grid { grid-template-columns: 200px 220px 200px; gap: 40px; }
+.etch-delta-map .gcol.from, .etch-delta-map .gcol.to { gap: 20px; }
+.etch-delta-map .connection-group { display: flex; flex-direction: column; gap: 8px; width: 200px; min-width: 0; }
+.etch-delta-map .connection-group .gcol-title { position: static; width: auto; white-space: normal; }
+.etch-delta-map .connection-group-cards { display: flex; flex-direction: column; gap: 8px; }
+.etch-delta-map .connection-group-search { box-sizing: border-box; width: 100%; min-width: 0; padding: 7px 9px; border: 1px solid var(--delta-border); border-radius: 6px; color: var(--delta-fg); background: var(--delta-panel-soft); font: inherit; font-size: 12px; }
+.etch-delta-map .connection-group-pager { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.etch-delta-map .connection-group-pager .btn { min-width: 28px; min-height: 28px; padding: 2px 8px; font-size: 18px; }
+.etch-delta-map .connection-group-range { color: var(--delta-muted); font-size: 11px; }
+.etch-delta-map .gcol.uses .connection-group { width: auto; max-width: 700px; }
+.etch-delta-map .gcol.uses .connection-group-cards { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+.etch-delta-map .gcol.uses .connection-group-search, .etch-delta-map .gcol.uses .connection-group-pager { align-self: center; width: 200px; }
+.etch-delta-map .connection-group-search:focus-visible, .etch-delta-map .connection-group-pager .btn:focus-visible, .etch-delta-map .map-previous-item:focus-visible { outline: 2px solid var(--delta-accent); outline-offset: 2px; }
+.etch-delta-map .map-previous-item { flex-shrink: 0; }
+
+.etch-delta-map .gcol.center { gap: 56px; }
+.etch-delta-map .gcol.center > .gnode { flex-shrink: 0; }
+.etch-delta-map .gcol.center .gcol.uses { width: 200px; }
+.etch-delta-map .gcol.center .gcol.uses .connection-group { width: 200px; }
+.etch-delta-map .gcol.center .gcol.uses .connection-group-cards { flex-direction: column; }

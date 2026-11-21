@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -61,6 +61,14 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 2.0.1 =
+
+* Keep large item-map connection groups compact with five-card paging, independent search, and full relationship totals.
+* Place shared resources directly beneath the mapped item so it stays visible alongside its connections.
+* Add View connections to selected item-map cards, opening their maps without changing the document active in Etch.
+* Add Previous item navigation and preserve each group's search and paging position when returning.
+* Distinguish the selected map item from the current editor item in the map legend.
 
 = 2.0.0 =
 
