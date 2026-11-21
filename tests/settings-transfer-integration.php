@@ -2,7 +2,7 @@
 /** WP-CLI eval-file integration checks. Restores every plugin option afterward. */
 $original_user = get_current_user_id();
 $keys = array(
-	'enabled', 'show_sidebar_icon', 'show_wordpress_edit', 'default_view', 'actions_layout', 'actions_first',
+	'hide_native_content_hub', 'panel_default_view', 'enabled', 'show_sidebar_icon', 'show_wordpress_edit', 'default_view', 'actions_layout', 'actions_first',
 	'default_column', 'default_order', 'term_default_column', 'term_default_order', 'active_bg', 'active_text',
 	'button_styles', 'status_styles', 'hierarchy_style',
 );
@@ -26,7 +26,7 @@ try {
 	$export = $request( 'GET', '/etch-hub-sort/v1/settings/transfer' );
 	$document = $export->get_data();
 	$check( 200 === $export->get_status() && 1 === $document['format_version'] && 'etch-content-hub-sort' === $document['plugin'], 'export uses a versioned plugin format' );
-	$check( 14 === count( $document['settings'] ) && count( etch_hub_sort_button_defaults() ) === count( $document['settings']['button_styles'] ) && 6 === count( $document['settings']['status_styles'] ), 'export contains general, sorting, button, hierarchy, and status settings' );
+	$check( 16 === count( $document['settings'] ) && count( etch_hub_sort_button_defaults() ) === count( $document['settings']['button_styles'] ) && 6 === count( $document['settings']['status_styles'] ), 'export contains general, sorting, button, hierarchy, and status settings' );
 	$check( ! str_contains( wp_json_encode( $document ), 'nonce' ) && ! str_contains( wp_json_encode( $document ), home_url() ), 'export contains no site URLs or nonces' );
 	// Create a source configuration distinct from the destination for every group.
 	$document['settings']['enabled'] = false;

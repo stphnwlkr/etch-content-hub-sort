@@ -1,0 +1,6 @@
+<!-- Original compass rose for Content Explorer for Etch. GPL-3.0-or-later.
+Constructed from a circle and a mathematical eight-point star. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <circle cx="12" cy="12" r="9.1" stroke="currentColor" stroke-width="1.2" />
+  <polygon fill="currentColor" points="12.000,0.500 12.880,9.875 17.728,6.272 14.125,11.120 23.500,12.000 14.125,12.880 17.728,17.728 12.880,14.125 12.000,23.500 11.120,14.125 6.272,17.728 9.875,12.880 0.500,12.000 9.875,11.120 6.272,6.272 11.120,9.875" />
+</svg>

@@ -61,13 +61,15 @@ function etch_hub_sort_quick_edit_statuses( WP_Post_Type $post_type ): array {
 		// Core uses a separate Private checkbox. The Hub uses one status picker.
 		$statuses['private'] = $registered['private']->label;
 	}
-	$statuses['pending'] = __( 'Pending Review' );
+	$statuses['pending'] = __( 'Pending Review', 'etch-content-hub-sort' );
 	$statuses['draft'] = $registered['draft']->label;
 	foreach ( $registered as $name => $status ) {
 		if ( ! $status->_builtin ) {
 			$statuses[ $name ] = $status->label;
 		}
 	}
+	// WordPress core's Quick Edit extension hook is intentionally shared.
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 	$statuses = apply_filters( 'quick_edit_statuses', $statuses, $post_type->name, false, $can_publish );
 	$allowed = array();
 	foreach ( (array) $statuses as $name => $label ) {

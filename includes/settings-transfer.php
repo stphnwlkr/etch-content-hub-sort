@@ -13,8 +13,10 @@ function etch_hub_sort_export_settings(): array {
 	return array(
 		'enabled' => '0' !== get_option( 'etch_hub_sort_enabled', '1' ),
 		'show_sidebar_icon' => '0' !== get_option( 'etch_hub_sort_show_sidebar_icon', '1' ),
+		'hide_native_content_hub' => '1' === get_option( 'etch_hub_sort_hide_native_content_hub', '0' ),
 		'show_wordpress_edit' => '0' !== get_option( 'etch_hub_sort_show_wordpress_edit', '1' ),
 		'default_view' => etch_hub_sort_default_view(),
+		'panel_default_view' => get_option( 'etch_hub_sort_panel_default_view', 'list' ),
 		'actions_layout' => etch_hub_sort_actions_layout(),
 		'default_column' => etch_hub_sort_default_column(),
 		'default_order' => etch_hub_sort_default_order(),
@@ -34,11 +36,14 @@ function etch_hub_sort_transfer_keys_match( array $values, array $expected ): bo
 
 /** Build requests for the same validators used by the settings interface. */
 function etch_hub_sort_transfer_requests( array $document ) {
-	$invalid = new WP_Error( 'etch_hub_sort_invalid_transfer', __( 'Choose a complete Etch Content Hub Sort settings export in a supported format.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
+	$invalid = new WP_Error( 'etch_hub_sort_invalid_transfer', __( 'Choose a complete Content Explorer for Etch settings export in a supported format.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
 	if ( ( $document['plugin'] ?? null ) !== 'etch-content-hub-sort' || ( $document['format_version'] ?? null ) !== 1 || ! isset( $document['settings'] ) || ! is_array( $document['settings'] ) ) {
 		return $invalid;
 	}
 	$settings = $document['settings'];
+	// Earlier version-1 exports predate the panel preference. Preserve the local preference.
+	if ( ! array_key_exists( 'panel_default_view', $settings ) ) { $settings['panel_default_view'] = get_option( 'etch_hub_sort_panel_default_view', 'list' ); }
+	if ( ! array_key_exists( 'hide_native_content_hub', $settings ) ) { $settings['hide_native_content_hub'] = '1' === get_option( 'etch_hub_sort_hide_native_content_hub', '0' ); }
 	$expected = etch_hub_sort_export_settings();
 	if ( ! etch_hub_sort_transfer_keys_match( $settings, $expected ) ) {
 		return $invalid;

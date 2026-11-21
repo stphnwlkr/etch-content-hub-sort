@@ -1,0 +1,6 @@
+@awesome.me/webawesome 3.15.0: LICENSE.md
+@lit/reactive-element 2.1.2: LICENSE
+@shoelace-style/localize 3.2.3: LICENSE.md
+lit 3.3.3: LICENSE
+lit-element 4.2.2: LICENSE
+lit-html 3.3.3: LICENSE

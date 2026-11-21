@@ -1,18 +1,24 @@
-=== Etch Content Hub Sort ===
+=== Content Explorer for Etch ===
 Contributors: stephenwalker
 Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.7.18
+Stable tag: 2.0.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Adds search, sorting, pagination, and hierarchy browsing to posts and taxonomies in the Etch Content Hub.
+Browse, edit, and map WordPress content in a dedicated Etch panel.
 
 == Description ==
 
-This plugin adds a browse table to Etch's Content Hub. It searches and sorts across the full result set and offers 25, 50, or 100 items per page. An Etch table button opens the original Etch view for inline editing and new item creation. A dedicated Hub search and sort panel turns the feature on or off, chooses the view used when the builder loads, chooses the initial sort column and direction, and sets the active heading's background and text colors. A view selected during a builder session stays active across content types and taxonomies until switched back or reloaded. The General section can hide its left sidebar shortcut while search and sorting is active; settings remain available in the Content Hub toolbar. Its Buttons section offers individual background and text or icon colors, plus icon only, icon and text, or text only display, for buttons in the browse table. Color pairs must meet 4.5:1 text contrast. The General section also offers four Actions layouts: both at the end (default), both at the start, Open after Title with Trash last, or Open first with Trash last.
+The Content Explorer sidebar button opens a dedicated panel with List as its default view. List provides search, full-result sorting, pagination, hierarchy browsing, Quick edit, creation, and permission-aware edit actions. The Map accordion offers Site and Current item. Settings is a separate accordion, closed by default. The menu can be collapsed or resized up to 300px. Menu width, collapsed state, and List column visibility are saved per user in the current browser.
+
+Quick edit and Connections share a column immediately after Title. Columns lets you show or hide ID, Slug, Status, Created, and Last Edited, with all enabled initially. Settings controls sorting, action placement, button styling, hierarchy styling, and status colors. Icons use Etch's native SVG renderer and follow custom Etch styling.
+
+Item maps identify the content type, status, public path where available, incoming and outgoing links, shared resources, and reverse usage. Edit with Etch appears only for supported editable documents. Edit with WP opens the WordPress editor. View on site appears only for publicly viewable content. Selecting a Site graph entry offers View connections without changing the document open in Etch. Back to list preserves your list state.
+
+The Site graph includes public content types, their entries, and their taxonomies. Nonpublic custom types and internal patterns, templates, template parts, and navigation resources remain accessible through List and item maps. The Site graph fits on opening. Search hides lines unrelated to matching items. Dynamic URLs, arbitrary runtime query output, third-party field relationships, and unsaved editor changes are not evaluated. Maps reflect saved content. Very large item maps show a notice when their 500 incoming-connection or 100 nested-resource limit is reached.
 
 Taxonomy terms have a browse table with Name, Slug, Description, Count, and Parent where applicable. Search, sorting, and pagination work across all terms. A separate setting chooses the initial taxonomy sort column and direction. Hierarchical taxonomies can be browsed as a tree, and flat search results identify each child's parent. New term and Quick edit let you set the name, slug, description, and parent. Delete permanently removes a term after confirmation. WordPress moves its children up one level. Terms do not have WordPress drafts or Trash.
 
@@ -24,11 +30,11 @@ The Hierarchy section can customize parent and child row backgrounds, text, left
 
 The browse table also has a New item button with Draft or Published status. For hierarchical content types, choose a parent while creating an item. Each existing item has Quick edit for changing its title, slug, date, status, and, for hierarchical types, its parent. If both title and slug were blank, entering a title suggests a slug; WordPress generates the saved slug unless the user edits that suggestion. Date and time use the site's timezone; WordPress schedules published items with future dates. Quick edit offers Published, Scheduled, Private, Pending Review, Draft, and registered custom workflow statuses permitted for the current user. It honors the WordPress quick_edit_statuses filter. The parent picker searches the full content type. WordPress permissions control which actions appear and which changes are accepted.
 
-An Edit in WordPress button appears beside Open in Builder for posts and pages. It opens the WordPress editor in a new tab, including custom fields available there. Term rows also link to the WordPress term editor. The Table setting can hide these buttons; they are shown by default and only appear for items the user may edit.
+An Edit with WP button opens editable posts and pages in WordPress. It opens the WordPress editor in a new tab, including custom fields available there. Term rows also link to the WordPress term editor. The Table setting can hide these buttons; they are shown by default and only appear for items the user may edit.
 
 Hierarchical content types, such as Pages, open in a parent and child view. Expand a parent to load its children, or use the Open all / Close all control for every branch on the current page. Large branches have a Load more children control. Sorting applies within each level, while the main pagination counts top-level items. The Hierarchy button switches between the tree and flat list. Hierarchy controls appear only in the browse table. Search results appear as a flat list so matches at every depth remain visible; child results name their parent.
 
-Etch must be installed and active. The plugin uses Etch's current builder interface, so a future Etch update may require a compatibility update. Tested with Etch 1.7.0 and WordPress 7.1.3 on a local site.
+Etch must be installed and active. The plugin uses Etch's current builder interface, so a future Etch update may require a compatibility update. Version 2.0 was checked with Etch 1.8.3 on the local test site and with isolated WordPress integration tests. See README.md for map scope and compatibility details.
 
 Only users with appropriate WordPress capabilities can list, manage, or move items to Trash. The Trash action asks for confirmation and moves eligible items to the standard WordPress Trash.
 
@@ -36,7 +42,7 @@ Only users with appropriate WordPress capabilities can list, manage, or move ite
 
 1. Install and activate Etch.
 2. Upload the etch-content-hub-sort ZIP in Plugins > Add New > Upload Plugin, then activate it.
-3. Open the Etch builder and its Content Hub. Use the Hub search and sort button in Etch's left settings bar to open this plugin's settings panel.
+3. Open the Etch builder, then use the Content Explorer button in the left sidebar. List opens by default. Expand Map or Settings for other views and options.
 
 Starting with version 1.7.6, WordPress checks this plugin's public GitHub Releases for updates. New versions appear on the Plugins screen and can be installed there or through WordPress automatic updates. Each release must include the installable, versioned plugin ZIP. Version 1.7.5 and older must be upgraded to 1.7.6 manually once to enable these update checks.
 
@@ -44,7 +50,7 @@ Starting with version 1.7.6, WordPress checks this plugin's public GitHub Releas
 
 = Can I edit an item's content in the browse table? =
 
-Quick edit changes title, slug, date, status, and parent. Use Open in Builder to edit the item's content in Etch, or Edit in WordPress to reach the WordPress editor and custom fields. The Etch table button returns to Etch's original inline editing and creation view.
+Quick edit changes title, slug, date, status, and parent. Use Edit with Etch to edit supported content in Etch, or Edit with WP to reach the WordPress editor and custom fields. Etch's original Content Hub remains available separately.
 
 = What happens when I select Trash? =
 
@@ -55,6 +61,21 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 2.0.0 =
+
+* Rename the plugin to Content Explorer for Etch, with a compass shortcut in the upper Etch sidebar. Keep the existing plugin folder, settings, and update identity.
+* Replace the Content Hub overlay with a dedicated panel. List always opens first; Map and Settings use locally bundled Web Awesome accordions.
+* Add a collapsible, resizable left menu with a 300px maximum. Remember menu layout and column choices per user in the current browser.
+* Add Current item and Site maps adapted from Delta, including links, shared resources, template assignments, reverse usage, taxonomy relationships, and permission-aware details.
+* Add graph search, filters, display controls, dragging, zoom, and Fit. Fit the Site graph on opening and hide unrelated connection lines during search.
+* Open a selected Site entry's connections without changing the document being edited. Keep a separate Current item connections shortcut and Back to list navigation.
+* Show content type, path, status, and available Edit with Etch, Edit with WP, and View on site actions throughout maps. Exclude inaccessible items and unsupported editor actions.
+* Put Quick edit and Connections in a dedicated column after Title. Add visibility controls for ID, Slug, Status, Created, and Last Edited, all enabled initially.
+* Keep pagination visible while the List table scrolls. Preserve search, sorting, hierarchy, creation, quick editing, taxonomy tools, status colors, and settings transfer.
+* Match Etch's sidebar styling, active states, and click-to-close behavior. Add an option to hide the native Content Hub shortcut.
+* Bundle open-licensed UI icons and complete third-party notices. Show a limit notice for large item maps and migrate the saved-content index automatically.
+* Changed: the old Etch-table/default-view and hide-plugin-shortcut choices no longer control the panel. List is always the default and the plugin shortcuts remain available. Older settings exports still import; browser-local layout choices are not transferred.
 
 = 1.7.18 =
 

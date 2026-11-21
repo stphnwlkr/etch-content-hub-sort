@@ -24,3 +24,16 @@ delete_option( 'etch_hub_sort_active_text' );
 delete_option( 'etch_hub_sort_button_styles' );
 delete_option( 'etch_hub_sort_status_styles' );
 delete_option( 'etch_hub_sort_hierarchy_style' );
+
+delete_option( 'etch_hub_map_cursor_v1' );
+delete_option( 'etch_hub_map_lock' );
+delete_post_meta_by_key( '_etch_hub_map_link' );
+delete_post_meta_by_key( '_etch_hub_map_uses' );
+
+delete_option( 'etch_hub_sort_panel_default_view' );
+
+delete_option( 'etch_hub_map_index_version' );
+
+delete_option( 'etch_hub_sort_hide_native_content_hub' );
+
+delete_site_transient( 'etch_hub_sort_github_release' );

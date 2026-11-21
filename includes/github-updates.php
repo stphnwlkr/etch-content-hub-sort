@@ -1,5 +1,5 @@
 <?php
-/** GitHub Release updates for Etch Content Hub Sort. */
+/** GitHub Release updates for Content Explorer for Etch. */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -101,7 +101,7 @@ add_filter(
 		}
 
 		return (object) array(
-			'name'          => 'Etch Content Hub Sort',
+			'name'          => 'Content Explorer for Etch',
 			'slug'          => 'etch-content-hub-sort',
 			'version'       => $release['version'],
 			'author'        => 'Stephen Walker',
@@ -110,7 +110,7 @@ add_filter(
 			'requires'      => '5.9',
 			'requires_php'  => '8.1',
 			'sections'      => array(
-				'description' => '<p>Search, sort, and manage content in the Etch Content Hub.</p>',
+				'description' => '<p>Browse, edit, and map content and shared resources in a dedicated Etch panel.</p>',
 				'changelog'   => '' !== $release['notes'] ? wpautop( esc_html( $release['notes'] ) ) : '<p>See the GitHub release for changes.</p>',
 			),
 		);

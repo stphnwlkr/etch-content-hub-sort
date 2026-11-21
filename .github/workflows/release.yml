@@ -23,13 +23,17 @@ jobs:
           grep -Fq "Version: ${version}" etch-content-hub-sort.php
           grep -Fq "Stable tag: ${version}" readme.txt
           grep -Fq "\$version = '${version}';" etch-content-hub-sort.php
-          php -l etch-content-hub-sort.php
+          for file in etch-content-hub-sort.php uninstall.php includes/*.php; do php -l "$file"; done
           php -l includes/github-updates.php
           php tests/updater-smoke.php
           node --check assets/sort.js
+          node --check assets/connections.js
+          node --check assets/delta-graph.js
+          node --check assets/vendor/webawesome/accordion.js
+          php -l includes/connections.php
           git archive --format=zip --prefix=etch-content-hub-sort/ \
             -o "etch-content-hub-sort-${version}.zip" HEAD -- \
-            etch-content-hub-sort.php includes assets readme.txt README.md LICENSE.txt uninstall.php
+            etch-content-hub-sort.php includes assets readme.txt README.md LICENSE.txt NOTICE.txt CHANGELOG.md uninstall.php
           unzip -tq "etch-content-hub-sort-${version}.zip"
 
       - name: Publish GitHub release
@@ -39,6 +43,6 @@ jobs:
         run: |
           version="${RELEASE_TAG#v}"
           gh release create "${RELEASE_TAG}" "etch-content-hub-sort-${version}.zip" \
-            --title "Etch Content Hub Sort ${version}" \
-            --generate-notes \
+            --title "Content Explorer for Etch ${version}" \
+            --notes-file RELEASE-NOTES.md \
             --verify-tag

@@ -1,0 +1,26 @@
+{
+  "package": "lucide-static",
+  "version": "1.77.0",
+  "license": "ISC; Feather-derived icons include MIT notices in LUCIDE-LICENSE.txt",
+  "adaptation": "Stroke width changed from 2 to 1.5 to match Etch.",
+  "icons": {
+    "ui-sort-asc.svg": "arrow-up",
+    "ui-sort-desc.svg": "arrow-down",
+    "ui-sort.svg": "arrow-up-down",
+    "ui-hierarchy.svg": "list-tree",
+    "ui-expand-all.svg": "list-chevrons-up-down",
+    "ui-edit.svg": "pencil-line",
+    "ui-trash.svg": "trash-2",
+    "ui-chevron-down.svg": "chevron-down",
+    "ui-chevron-right.svg": "chevron-right",
+    "ui-gear.svg": "settings",
+    "ui-grid.svg": "grid-2x2",
+    "ui-left.svg": "chevron-left",
+    "ui-right.svg": "chevron-right",
+    "ui-open.svg": "arrow-up-right",
+    "ui-plus-circle.svg": "circle-plus",
+    "ui-plus.svg": "plus",
+    "ui-x.svg": "x",
+    "ui-connections.svg": "network"
+  }
+}

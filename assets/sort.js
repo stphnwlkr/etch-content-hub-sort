@@ -23,16 +23,23 @@
     ['slug', __('Slug', 'etch-content-hub-sort')], ['description', __('Description', 'etch-content-hub-sort')],
     ['count', __('Count', 'etch-content-hub-sort')],
   ];
+  // Personal display preferences stay local to this site, browser, and signed-in user.
+  const columnStorageKey = `etch-hub-sort-columns:${config.userId || 0}`;
+  let hiddenColumns = new Set();
+  try {
+    const saved = JSON.parse(localStorage.getItem(columnStorageKey) || '[]');
+    if (Array.isArray(saved)) hiddenColumns = new Set(saved.filter(key => ['id', 'slug', 'status', 'created', 'modified'].includes(key)));
+  } catch { /* Storage may be unavailable; show every column by default. */ }
   const states = new Map();
-  let sessionNative = config.defaultView === 'etch';
+  let sessionNative = false;
   let view = null;
   let settingsManager = null;
   let scheduled = false;
   let observedSelection = '';
   const sortIcons = {
-    asc: 'arrow-up-03-stroke-sharp.svg',
-    desc: 'arrow-down-03-stroke-sharp.svg',
-    none: 'arrow-data-transfer-vertical-stroke-sharp.svg',
+    asc: 'ui-sort-asc.svg',
+    desc: 'ui-sort-desc.svg',
+    none: 'ui-sort.svg',
   };
   const contrastRatio = (background, foreground) => {
     const luminance = hex => {
@@ -111,6 +118,7 @@
   };
   const nativeActionIcons = new WeakMap();
   const appendNativeActionIcon = (node, table, action) => {
+    if (!table) return;
     if (!nativeActionIcons.has(table)) {
       let icons = null;
       const cells = table.querySelectorAll('.datagrid-cell:last-child');
@@ -155,31 +163,80 @@
   const repaintButtons = () => {
     if (view) for (const node of view.root.querySelectorAll('.etch-hub-sort-themed')) applyButtonStyle(node);
   };
-  const syncSidebarShortcut = () => {
-    if (settingsManager?.trigger) settingsManager.trigger.hidden = config.enabled && !config.showSidebarIcon;
+  const sidebarIconDefinition = name => {
+    const source = new DOMParser().parseFromString(config.sidebarIcons[name], 'image/svg+xml').documentElement;
+    const artwork = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    for (const attribute of ['fill', 'stroke', 'stroke-width']) {
+      if (source.hasAttribute(attribute)) artwork.setAttribute(attribute, source.getAttribute(attribute));
+    }
+    artwork.append(...[...source.childNodes].map(node => document.importNode(node, true)));
+    // Pass artwork to Etch's native icon renderer; it owns SVG size, classes, and styling.
+    const [, , width, height] = source.getAttribute('viewBox').trim().split(/\s+/).map(Number);
+    return { body: new XMLSerializer().serializeToString(artwork), width, height };
   };
-  const openSettingsPanel = () => {
+  const syncNativeContentHub = () => {
+    const top = document.querySelector('.settings-bar__section.top');
+    if (!top) return;
+    // Etch 1.8's native button has no label or stable ID. Identify its file-01 artwork,
+    // never its position, so other extensions' buttons cannot be hidden accidentally.
+    const native = [...top.querySelectorAll('button')].find(node =>
+      node.getAttribute('aria-label') === 'Content Hub' ||
+      (node.querySelector('svg path[d="M7.99976 7H15.9998"]') && node.querySelector('svg path[d="M20 15H15C13.8954 15 13 15.8954 13 17V22"]')));
+    if (native) {
+      if (!native.hasAttribute('aria-label')) native.setAttribute('aria-label', 'Content Hub');
+      native.classList.toggle('etch-native-hub-hidden', !!config.hideNativeContentHub);
+    }
+  };
+  const syncSidebarShortcut = () => {
+    if (settingsManager?.trigger) settingsManager.trigger.hidden = false;
+  };
+  const syncSidebarActiveState = () => {
+    if (!settingsManager) return;
+    const open = !settingsManager.panel.hidden;
+    const mapOpen = open && settingsManager.section === 'map';
+    for (const [trigger, active] of [[settingsManager.trigger, open && !mapOpen], [settingsManager.connectionsTrigger, mapOpen]]) {
+      if (!trigger) continue;
+      // Use Etch's native selected attribute for the same active styling as its own controls.
+      trigger.setAttribute('selected', String(active));
+      trigger.setAttribute('aria-expanded', String(active));
+    }
+  };
+  const closeContentPanel = () => {
+    if (!settingsManager || settingsManager.panel.hidden) return;
+    window.etchHubCloseConnections?.();
+    settingsManager.panel.hidden = true;
+    settingsManager.panel.parentElement?.classList.remove('etch-content-panel-open');
+    syncSidebarActiveState();
+    settingsManager.launch?.isConnected && settingsManager.launch.focus();
+  };
+  const openContentPanel = (section = 'list', id = 0) => {
     mountSettingsPanel();
     if (!settingsManager) return;
-    settingsManager.returnToHub = settingsManager.pendingReturnToHub ?? !!document.querySelector('.content-hub__content');
-    settingsManager.pendingReturnToHub = null;
     settingsManager.launch = document.activeElement;
-    settingsManager.hubButton = document.querySelector('.settings-bar__section.top > button[title="Content Hub"], .settings-bar__section.top > button[aria-label="Content Hub"]')
-      || document.querySelector('.settings-bar__section.top > button');
+    const parent = document.querySelector('.settings-bar')?.parentElement;
+    if (parent && settingsManager.panel.parentElement !== parent) parent.append(settingsManager.panel);
     settingsManager.panel.hidden = false;
-    settingsManager.trigger?.setAttribute('aria-expanded', 'true');
-    settingsManager.back.focus();
+    parent?.classList.add('etch-content-panel-open');
+    settingsManager.showSection(section, id);
+    (settingsManager.panel.classList.contains('is-menu-collapsed') ? settingsManager.menuToggle : settingsManager.back).focus();
   };
-  const selectedType = () => {
-    const selected = document.querySelector('.content-hub__sidebar .content-hub-list__item--selected .content-hub-list__item-button');
-    const label = selected?.textContent?.trim();
-    if (!label) return null;
-    const section = selected.closest('.content-hub-list');
-    const sectionLabel = section?.querySelector('.content-hub-list__header')?.textContent?.trim() || '';
-    if (sectionLabel === 'Taxonomies' && config.taxonomies?.[label]) return { kind: 'term', type: config.taxonomies[label], label };
-    if (config.types[label]) return { kind: 'post', type: config.types[label], label };
-    if (config.taxonomies?.[label]) return { kind: 'term', type: config.taxonomies[label], label };
-    return null;
+  const activePostId = () => Number(window.etch?.navigation?.getActivePostId?.()) || Number(new URL(location.href).searchParams.get('post_id')) || 0;
+  const openDefaultPanel = () => openContentPanel('list');
+  const openSettingsPanel = () => openContentPanel('general');
+  const toggleSidebarView = section => {
+    const open = settingsManager && !settingsManager.panel.hidden;
+    const isMap = settingsManager?.section === 'map';
+    if (open && (section === 'map' ? isMap : !isMap)) {
+      closeContentPanel();
+      return;
+    }
+    openContentPanel(section, section === 'map' ? activePostId() : 0);
+  };
+  window.etchHubContentPanel = {
+    open: openDefaultPanel,
+    openList: () => { openContentPanel('list'); settingsManager.panel.querySelector('.etch-hub-sort-search')?.focus(); },
+    openMap: id => openContentPanel('map', Number(id) || 0),
+    close: closeContentPanel,
   };
   const stateFor = (type, kind) => {
     const key = `${kind}:${type}`;
@@ -614,11 +671,12 @@
     const notice = current.notice;
     notice.replaceChildren();
     notice.appendChild(element('span', '', message));
-    if (current.kind !== 'term' && id) {
+    if (current.kind !== 'term' && id && current.data?.can_etch_edit) {
       const open = themedButton(__('Open in Builder', 'etch-content-hub-sort'), async () => {
         open.disabled = true;
         try {
           await window.etch.navigation.openPostAsync(id);
+          closeContentPanel();
         } catch (error) {
           notice.querySelector('span').textContent = error.message || __('Could not open this item.', 'etch-content-hub-sort');
           open.disabled = false;
@@ -682,16 +740,21 @@
     current.newButton.disabled = !data.can_create;
 
     const scroller = element('div', 'etch-hub-sort-scroller');
+    scroller.tabIndex = 0;
+    scroller.setAttribute('role', 'region');
+    scroller.setAttribute('aria-label', __('Scrollable content table', 'etch-content-hub-sort'));
     const table = element('table', 'etch-hub-sort-table');
     const hierarchy = !!data.hierarchy;
     const thead = element('thead');
     const headings = element('tr');
     const isTerm = current.kind === 'term';
-    const activeColumns = isTerm
+    const availableColumns = isTerm
       ? ((config.hierarchicalTaxonomies || []).includes(current.type)
         ? [...termColumns.slice(0, 3), ['parent', __('Parent', 'etch-content-hub-sort')], ...termColumns.slice(3)]
         : termColumns)
       : columns;
+    const activeColumns = availableColumns.filter(([key]) => !hiddenColumns.has(key));
+    const hierarchyColumn = hiddenColumns.has('id') ? 'title' : 'id';
     const splitActions = !isTerm && config.actionsLayout === 'split';
     const openStart = !isTerm && config.actionsLayout === 'open_start';
     const separateActions = splitActions || openStart;
@@ -725,6 +788,11 @@
       heading.appendChild(icon);
       th.appendChild(heading);
       headings.appendChild(th);
+      if (key === 'title') {
+        const toolsHeading = element('th', 'etch-hub-sort-tools-cell', __('Quick actions', 'etch-content-hub-sort'));
+        toolsHeading.scope = 'col';
+        headings.appendChild(toolsHeading);
+      }
       if (splitActions && key === 'title') headings.appendChild(actionHeading(__('Open', 'etch-content-hub-sort'), true));
     }
     if (separateActions) headings.appendChild(actionHeading(__('Trash', 'etch-content-hub-sort'), true));
@@ -733,7 +801,7 @@
     table.appendChild(thead);
 
     const tbody = element('tbody');
-    const columnCount = activeColumns.length + (separateActions ? 2 : 1);
+    const columnCount = activeColumns.length + 1 + (separateActions ? 2 : 1);
     const updateBulkButton = () => {
       if (!current.bulkButton) return;
       const canExpand = !!tbody.querySelector('.etch-hub-sort-expand[aria-expanded="false"], .etch-hub-sort-load-more');
@@ -818,7 +886,7 @@
           : item[key] ?? '';
         const cell = element('td', `etch-hub-sort-cell-${key}`);
         if (key === 'status') cell.appendChild(element('span', `etch-hub-sort-status etch-hub-sort-status-${item.status}${isCustomStatus(item.status) ? ' etch-hub-sort-status-custom' : ''}`, value));
-        else if (key === 'id' && hierarchy) {
+        else if (key === hierarchyColumn && hierarchy) {
           const id = element('div', 'etch-hub-sort-tree-id');
           id.style.setProperty('--etch-hub-depth', depth);
           if (item.has_children) {
@@ -855,13 +923,22 @@
         } else { cell.textContent = value; cell.title = String(value); }
         row.appendChild(cell);
       }
-      if (isTerm) {
-        if (item.can_edit) {
-          const titleCell = row.querySelector('.etch-hub-sort-cell-title');
-          const edit = themedButton(__('Quick edit', 'etch-content-hub-sort'), () => showTermEdit(current, item), 'etch-hub-sort-quick-edit', 'quick_edit');
-          edit.setAttribute('aria-label', sprintf(__('Quick edit %s', 'etch-content-hub-sort'), item.title));
-          (titleCell.firstElementChild || titleCell).appendChild(edit);
+      const tools = element('td', 'etch-hub-sort-tools-cell');
+      const quickActions = element('div', 'etch-hub-sort-quick-actions');
+      if (item.can_edit) {
+        const edit = themedButton(__('Quick edit', 'etch-content-hub-sort'), () => isTerm ? showTermEdit(current, item) : showQuickEdit(current, item), 'etch-hub-sort-quick-edit', 'quick_edit');
+        edit.setAttribute('aria-label', sprintf(__('Quick edit %s', 'etch-content-hub-sort'), item.title || `#${item.id}`));
+        quickActions.append(edit);
+        if (!isTerm && config.connectionsEndpoint) {
+          const map = button(__('Connections', 'etch-content-hub-sort'), () => window.etchHubShowConnections?.(item.id), 'etch-hub-connections-button');
+          map.title = __('Connections', 'etch-content-hub-sort');
+          map.setAttribute('aria-label', sprintf(__('Connections for %s', 'etch-content-hub-sort'), item.title || `#${item.id}`));
+          quickActions.append(map);
         }
+      }
+      tools.append(quickActions);
+      row.querySelector('.etch-hub-sort-cell-title').after(tools);
+      if (isTerm) {
         const actions = element('td', 'etch-hub-sort-actions-cell');
         const buttons = element('div', 'etch-hub-sort-action-buttons');
         const wordpress = wordpressEditLink(item);
@@ -898,12 +975,6 @@
         row.appendChild(actions);
         return row;
       }
-      if (item.can_edit) {
-        const titleCell = row.querySelector('.etch-hub-sort-cell-title');
-        const edit = themedButton(__('Quick edit', 'etch-content-hub-sort'), () => showQuickEdit(current, item), 'etch-hub-sort-quick-edit', 'quick_edit');
-        edit.setAttribute('aria-label', sprintf(__('Quick edit %s', 'etch-content-hub-sort'), item.title || `#${item.id}`));
-        (titleCell.firstElementChild || titleCell).appendChild(edit);
-      }
       const actions = element('td', `etch-hub-sort-actions-cell${separateActions ? ' etch-hub-sort-action-single' : ''}`);
       const actionButtons = element('div', 'etch-hub-sort-action-buttons');
       const trashActions = separateActions ? element('td', 'etch-hub-sort-actions-cell etch-hub-sort-action-single') : null;
@@ -913,6 +984,7 @@
         try {
           if (!window.etch?.navigation?.openPostAsync) throw new Error(__('Etch navigation is unavailable.', 'etch-content-hub-sort'));
           await window.etch.navigation.openPostAsync(item.id);
+          closeContentPanel();
         } catch (error) {
           current.message.textContent = error.message || __('Could not open this item.', 'etch-content-hub-sort');
           open.disabled = false;
@@ -921,7 +993,7 @@
       appendNativeActionIcon(open, current.table, 'open');
       open.setAttribute('aria-label', sprintf(__('Open %s in Builder', 'etch-content-hub-sort'), item.title || `#${item.id}`));
       open.title = __('Open in Builder', 'etch-content-hub-sort');
-      actionButtons.appendChild(open);
+      if (item.etch_edit_url) actionButtons.appendChild(open);
       const wordpress = wordpressEditLink(item);
       if (wordpress) actionButtons.appendChild(wordpress);
       if (item.can_delete) {
@@ -959,7 +1031,7 @@
       if (separateActions) {
         trashActions.appendChild(trashButtons);
         if (openStart) row.prepend(actions);
-        else row.querySelector('.etch-hub-sort-cell-title').after(actions);
+        else tools.after(actions);
         row.appendChild(trashActions);
       } else if (actionsFirst) row.prepend(actions);
       else row.appendChild(actions);
@@ -1062,12 +1134,12 @@
 
   function mount(table, type, kind, content, nativeContainer, label) {
     const state = stateFor(type, kind);
-    state.native = sessionNative;
+    state.native = false;
     const root = element('section', 'etch-hub-sort');
     root.style.setProperty('--etch-hub-active-bg', config.activeBg);
     root.style.setProperty('--etch-hub-active-text', config.activeText);
     applyHierarchyStyle(root);
-    root.setAttribute('aria-label', __('Content Hub search and sorting', 'etch-content-hub-sort'));
+    root.setAttribute('aria-label', __('Content list', 'etch-content-hub-sort'));
     const bar = element('div', 'etch-hub-sort-bar');
     const controls = element('div', 'etch-hub-sort-controls');
     const search = element('input', 'etch-hub-sort-search');
@@ -1110,54 +1182,11 @@
       if (!showBulk) bulkButton.disabled = true;
     };
     syncHierarchy();
-    const switchButton = themedButton('', async () => {
-      if (state.native) {
-        state.native = false;
-        sessionNative = false;
-        syncMode(current);
-        load(current);
-        return;
-      }
-      const refresh = window.etch?.navigation?.listPostsAsync;
-      if (state.etchDirty && kind === 'post' && typeof refresh !== 'function') {
-        current.message.textContent = __('Etch table refresh is unavailable. Browse all is current.', 'etch-content-hub-sort');
-        return;
-      }
-      state.native = true;
-      sessionNative = true;
-      state.refreshingNative = !!state.etchDirty;
-      syncMode(current);
-      if (state.refreshingNative) {
-        let refreshed = false;
-        try {
-          if (kind === 'term') {
-            const selectedButton = document.querySelector('.content-hub__sidebar .content-hub-list__item--selected .content-hub-list__item-button');
-            const otherButton = [...document.querySelectorAll('.content-hub__sidebar .content-hub-list__item:not(.content-hub-list__item--selected) .content-hub-list__item-button')]
-              .find(node => node !== selectedButton);
-            if (!selectedButton || !otherButton) throw new Error(__('Could not refresh Etch terms.', 'etch-content-hub-sort'));
-            otherButton.click();
-            await new Promise(resolve => setTimeout(resolve, 100));
-            selectedButton.click();
-            await new Promise(resolve => setTimeout(resolve, 100));
-          } else await refresh(current.type);
-          refreshed = true;
-          state.etchDirty = false;
-        } catch {
-          state.native = false;
-          sessionNative = false;
-        }
-        state.refreshingNative = false;
-        if (view?.state === state && view.type === current.type) {
-          syncMode(view);
-          if (!refreshed) view.message.textContent = __('Etch table could not be refreshed. Try again.', 'etch-content-hub-sort');
-        }
-      }
-    }, 'etch-hub-sort-switch', 'view');
-    switchButton.appendChild(element('span', 'etch-hub-sort-switch-label'));
-    appendNativeIcon(switchButton, '.settings-bar__section.etch-logo svg');
+    const switchButton = element('button');
+    switchButton.append(element('span', 'etch-hub-sort-switch-label'));
+    switchButton.hidden = true;
     const newButton = themedButton(kind === 'term' ? __('New term', 'etch-content-hub-sort') : __('New item', 'etch-content-hub-sort'),
       () => kind === 'term' ? showTermEdit(current) : showQuickEdit(current), 'etch-hub-sort-new', 'new');
-    const settingsButton = config.canManage ? themedButton(__('Hub settings', 'etch-content-hub-sort'), openSettingsPanel, 'etch-hub-sort-settings-launch', 'settings') : null;
     newButton.disabled = true;
     bar.append(controls);
     if (hierarchyTools) {
@@ -1167,10 +1196,33 @@
     }
     const toolbarActions = element('div', 'etch-hub-sort-toolbar-actions');
     toolbarActions.setAttribute('role', 'group');
-    toolbarActions.setAttribute('aria-label', __('Content Hub actions', 'etch-content-hub-sort'));
+    toolbarActions.setAttribute('aria-label', __('List actions', 'etch-content-hub-sort'));
+    const columnPicker = element('details', 'etch-hub-sort-column-picker');
+    const columnSummary = element('summary', '', __('Columns', 'etch-content-hub-sort'));
+    const columnOptions = element('fieldset', 'etch-hub-sort-column-options');
+    columnOptions.append(element('legend', '', __('Show columns', 'etch-content-hub-sort')));
+    for (const [key, label] of columns.filter(([key]) => key !== 'title' && (kind !== 'term' || ['id', 'slug'].includes(key)))) {
+      const option = element('label');
+      const checkbox = element('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = !hiddenColumns.has(key);
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) hiddenColumns.delete(key);
+        else hiddenColumns.add(key);
+        try { localStorage.setItem(columnStorageKey, JSON.stringify([...hiddenColumns])); } catch { /* Keep the current session usable without storage. */ }
+        if (current.data) renderRows(current, current.data);
+      });
+      option.append(checkbox, document.createTextNode(label));
+      columnOptions.append(option);
+    }
+    columnPicker.append(columnSummary, columnOptions);
+    columnPicker.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { columnPicker.open = false; columnSummary.focus(); }
+    });
+    toolbarActions.append(columnPicker);
     if (hierarchyTools) toolbarActions.appendChild(hierarchyTools);
-    if (settingsButton) toolbarActions.appendChild(settingsButton);
-    toolbarActions.append(switchButton, newButton);
+    switchButton.hidden = true;
+    toolbarActions.append(newButton);
     bar.appendChild(toolbarActions);
     const notice = element('div', 'etch-hub-sort-notice');
     notice.setAttribute('role', 'status');
@@ -1180,8 +1232,7 @@
     nativeLoading.hidden = true;
     const results = element('div', 'etch-hub-sort-results');
     root.append(bar, notice, nativeLoading, results);
-    if (kind === 'term') content.insertBefore(root, nativeContainer || content.firstChild);
-    else table.before(root);
+    content.append(root);
     const current = { table, nativeContainer, type, kind, label, state, root, controls, hierarchyTools, bulkButton, newButton, switchButton, message, notice, nativeLoading, results, search, syncHierarchy };
     view = current;
     syncMode(current);
@@ -1205,84 +1256,159 @@
 
   function refresh() {
     mountSettingsPanel();
-    const selected = selectedType();
-    const content = document.querySelector('.content-hub__content');
-    const nativeContainer = selected?.kind === 'term' ? content?.querySelector('.taxonomy-terms-table') : null;
-    const table = selected?.kind === 'term'
-      ? nativeContainer?.querySelector('.raster-wrapper')
-      : content?.querySelector('.datagrid-wrapper');
-    if (!config.enabled || !content || !selected || (selected.kind === 'post' && !table)) {
-      if (view) {
-        if (view.kind === 'term') {
-          if (view.nativeContainer) view.nativeContainer.hidden = false;
-        } else if (view.table) view.table.hidden = false;
-        view.root.remove();
-        view = null;
-      }
-      return;
-    }
-    if (selected.kind === 'post' && table.querySelectorAll('.datagrid-header > .datagrid-cell').length !== 7) return;
-    if (view?.type === selected.type && view.kind === selected.kind && view.root.isConnected) {
-      if (view.table !== table || view.nativeContainer !== nativeContainer) {
-        view.table = table;
-        view.nativeContainer = nativeContainer;
-        syncMode(view);
-      }
-      return;
-    }
-    if (view) {
-      if (view.kind === 'term') {
-        if (view.nativeContainer && selected.kind !== 'term') view.nativeContainer.hidden = false;
-      } else if (view.table) view.table.hidden = false;
-      view.root.remove();
-      view = null;
-    }
-    mount(table, selected.type, selected.kind, content, nativeContainer, selected.label);
   }
 
   function mountSettingsPanel() {
-    if (!config.canManage || settingsManager) return;
+    if (settingsManager) return;
     const panel = element('section', 'etch-hub-sort-manager');
     panel.id = 'etch-hub-sort-manager';
     panel.hidden = true;
-    panel.setAttribute('aria-label', __('Hub search and sort settings', 'etch-content-hub-sort'));
+    panel.setAttribute('aria-label', __('Content Explorer', 'etch-content-hub-sort'));
     const sidebar = element('div', 'etch-hub-sort-manager-sidebar');
+    sidebar.id = 'etch-content-panel-menu';
+    const menuStorageKey = `etch-hub-sort-menu:${config.userId || 0}`;
+    let menuWidth = 200, menuCollapsed = false;
+    try {
+      const saved = JSON.parse(localStorage.getItem(menuStorageKey) || '{}');
+      if (Number.isFinite(saved.width)) menuWidth = Math.min(300, Math.max(160, saved.width));
+      menuCollapsed = saved.collapsed === true;
+    } catch { /* Use the default menu when storage is unavailable. */ }
+    const menuToggle = button('', () => { menuCollapsed = !menuCollapsed; syncMenu(); }, 'etch-content-menu-toggle');
+    menuToggle.setAttribute('aria-controls', sidebar.id);
+    const resize = element('div', 'etch-content-menu-resize');
+    resize.tabIndex = 0;
+    resize.setAttribute('role', 'separator');
+    resize.setAttribute('aria-label', __('Resize content menu', 'etch-content-hub-sort'));
+    resize.setAttribute('aria-orientation', 'vertical');
+    resize.setAttribute('aria-controls', sidebar.id);
+    resize.setAttribute('aria-valuemin', '160');
+    resize.setAttribute('aria-valuemax', '300');
+    const syncMenu = () => {
+      panel.style.setProperty('--etch-content-menu-width', `${menuWidth}px`);
+      panel.classList.toggle('is-menu-collapsed', menuCollapsed);
+      menuToggle.textContent = menuCollapsed ? '›' : '‹';
+      const label = menuCollapsed ? __('Expand content menu', 'etch-content-hub-sort') : __('Collapse content menu', 'etch-content-hub-sort');
+      menuToggle.setAttribute('aria-label', label);
+      menuToggle.title = label;
+      menuToggle.setAttribute('aria-expanded', String(!menuCollapsed));
+      resize.hidden = menuCollapsed;
+      resize.setAttribute('aria-valuenow', String(menuWidth));
+      resize.setAttribute('aria-valuetext', `${menuWidth}px`);
+      try { localStorage.setItem(menuStorageKey, JSON.stringify({ width: menuWidth, collapsed: menuCollapsed })); } catch { /* Keep resizing usable without storage. */ }
+    };
+    resize.addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      resize.focus();
+      resize.setPointerCapture(event.pointerId);
+      panel.classList.add('is-menu-resizing');
+    });
+    resize.addEventListener('pointermove', event => {
+      if (!resize.hasPointerCapture(event.pointerId)) return;
+      menuWidth = Math.min(300, Math.max(160, Math.round(event.clientX - panel.getBoundingClientRect().left)));
+      syncMenu();
+    });
+    const stopResize = () => panel.classList.remove('is-menu-resizing');
+    resize.addEventListener('pointerup', event => { if (resize.hasPointerCapture(event.pointerId)) resize.releasePointerCapture(event.pointerId); stopResize(); });
+    resize.addEventListener('lostpointercapture', stopResize);
+    resize.addEventListener('pointercancel', stopResize);
+    resize.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      menuWidth = event.key === 'Home' ? 160 : event.key === 'End' ? 300
+        : Math.min(300, Math.max(160, menuWidth + (event.key === 'ArrowLeft' ? -10 : 10)));
+      syncMenu();
+    });
+    syncMenu();
     const header = element('div', 'etch-hub-sort-manager-header');
-    const back = button(__('Back', 'etch-content-hub-sort'), () => {
-      const returnToHub = settingsManager?.returnToHub;
-      const hubButton = settingsManager?.hubButton;
-      panel.hidden = true;
-      settingsManager?.trigger?.setAttribute('aria-expanded', 'false');
-      if (returnToHub && !document.querySelector('.content-hub__content')) hubButton?.click();
-      if (settingsManager) settingsManager.returnToHub = false;
-      const target = settingsManager?.launch?.isConnected && !settingsManager.launch.hidden ? settingsManager.launch : hubButton;
-      target?.focus();
-    }, 'etch-hub-sort-manager-back');
-    const title = element('h1', '', __('Hub search and sort', 'etch-content-hub-sort'));
+    const back = button(__('Close Content Explorer', 'etch-content-hub-sort'), closeContentPanel, 'etch-hub-sort-manager-back');
+    back.setAttribute('aria-label', __('Close Content Explorer', 'etch-content-hub-sort'));
+    const title = element('h1', '', __('Content Explorer', 'etch-content-hub-sort'));
     const versionPill = element('span', 'etch-hub-sort-version-pill', `v${config.version}`);
     versionPill.setAttribute('aria-label', sprintf(__('Installed version %s', 'etch-content-hub-sort'), config.version));
-    header.append(back, title);
+    header.append(back, title, menuToggle);
     const nav = element('nav', 'etch-hub-sort-manager-nav');
-    nav.setAttribute('aria-label', __('Hub settings sections', 'etch-content-hub-sort'));
+    nav.setAttribute('aria-label', __('Content views and settings', 'etch-content-hub-sort'));
     const generalTab = button(__('General', 'etch-content-hub-sort'), () => showSection('general'), 'etch-hub-sort-manager-nav-button');
     const hierarchyTab = button(__('Hierarchy', 'etch-content-hub-sort'), () => showSection('hierarchy'), 'etch-hub-sort-manager-nav-button');
     const buttonsTab = button(__('Buttons', 'etch-content-hub-sort'), () => showSection('buttons'), 'etch-hub-sort-manager-nav-button');
     const statusesTab = button(__('Status colors', 'etch-content-hub-sort'), () => showSection('statuses'), 'etch-hub-sort-manager-nav-button');
     const transferTab = button(__('Settings transfer', 'etch-content-hub-sort'), () => showSection('transfer'), 'etch-hub-sort-manager-nav-button');
-    nav.append(generalTab, hierarchyTab, buttonsTab, statusesTab, transferTab);
+    const listTab = button(__('List', 'etch-content-hub-sort'), () => showSection('list'), 'etch-hub-sort-manager-nav-button');
+    const mapDisclosure = element('wa-accordion', 'etch-content-settings-disclosure etch-content-map-disclosure');
+    mapDisclosure.setAttribute('appearance', 'plain');
+    mapDisclosure.setAttribute('heading-level', 'none');
+    mapDisclosure.setAttribute('icon-placement', 'start');
+    const mapItem = element('wa-accordion-item');
+    mapItem.setAttribute('label', __('Map', 'etch-content-hub-sort'));
+    const siteMapTab = button(__('Site', 'etch-content-hub-sort'), () => showSection('map'), 'etch-hub-sort-manager-nav-button');
+    const pageMapTab = button(__('Current item', 'etch-content-hub-sort'), () => {
+      showSection('map', activePostId());
+    }, 'etch-hub-sort-manager-nav-button');
+    mapItem.append(siteMapTab, pageMapTab);
+    mapDisclosure.append(mapItem);
+    nav.append(listTab, mapDisclosure);
+    const settingsDisclosure = element('wa-accordion', 'etch-content-settings-disclosure');
+    settingsDisclosure.setAttribute('appearance', 'plain');
+    settingsDisclosure.setAttribute('heading-level', 'none');
+    settingsDisclosure.setAttribute('icon-placement', 'start');
+    const settingsItem = element('wa-accordion-item');
+    settingsItem.setAttribute('label', __('Settings', 'etch-content-hub-sort'));
+    settingsItem.append(generalTab, hierarchyTab, buttonsTab, statusesTab, transferTab);
+    settingsDisclosure.append(settingsItem);
+    if (config.canManage) nav.append(settingsDisclosure);
     const sidebarFooter = element('div', 'etch-hub-sort-manager-sidebar-footer');
     sidebarFooter.appendChild(versionPill);
-    sidebar.append(header, nav, sidebarFooter);
+    sidebar.append(header, nav, sidebarFooter, resize);
     const body = element('div', 'etch-hub-sort-manager-body');
     const content = element('div', 'etch-hub-sort-settings-panel');
     const hierarchyContent = element('div', 'etch-hub-sort-hierarchy-settings-panel');
     const buttonContent = element('div', 'etch-hub-sort-button-settings-panel');
     const statusContent = element('div', 'etch-hub-sort-button-settings-panel etch-hub-sort-status-settings-panel');
     const transferContent = element('div', 'etch-hub-sort-button-settings-panel');
-    body.append(content, hierarchyContent, buttonContent, statusContent, transferContent);
+    const listContent = element('div', 'etch-content-list-view');
+    const listHeading = element('header', 'etch-content-list-heading');
+    listHeading.append(element('h2', '', __('List', 'etch-content-hub-sort')));
+    const typeLabel = element('label', 'etch-content-type-label', __('Content type', 'etch-content-hub-sort'));
+    const typeSelect = element('select', 'etch-hub-sort-placement-select');
+    typeSelect.setAttribute('aria-label', __('Choose content type', 'etch-content-hub-sort'));
+    for (const [kind, label, values] of [ ['post', __('Content', 'etch-content-hub-sort'), config.types], ['term', __('Taxonomies', 'etch-content-hub-sort'), config.taxonomies] ]) {
+      const group = element('optgroup'); group.label = label;
+      for (const [name, value] of Object.entries(values || {})) {
+        if (['attachment', 'wp_global_styles', 'wp_font_family', 'wp_font_face'].includes(value)) continue;
+        const option = element('option', '', name || value); option.value = `${kind}:${value}`; group.append(option);
+      }
+      typeSelect.append(group);
+    }
+    if ([...typeSelect.options].some(option => option.value === 'post:page')) typeSelect.value = 'post:page';
+    typeLabel.append(typeSelect); listHeading.append(typeLabel);
+    const listHost = element('div', 'etch-content-list-host');
+    listContent.append(listHeading, listHost);
+    const mapContent = element('div', 'etch-content-map-view');
+    body.append(listContent, mapContent, content, hierarchyContent, buttonContent, statusContent, transferContent);
+    const mountList = () => {
+      if (view) { view.state.requestId++; view.root.remove(); view = null; }
+      const [kind, type] = typeSelect.value.split(':');
+      if (type) mount(null, type, kind, listHost, null, typeSelect.selectedOptions[0].textContent);
+    };
+    typeSelect.addEventListener('change', mountList);
     panel.append(sidebar, body);
     document.body.appendChild(panel);
-    const showSection = section => {
+    const showSection = (section, id = 0) => {
+      if (!['list', 'map'].includes(section) && !config.canManage) section = 'list';
+      if (!['list', 'map'].includes(section)) settingsItem.expanded = true;
+      window.etchHubCloseConnections?.();
+      panel.classList.toggle('has-delta-map', section === 'map');
+      listContent.hidden = section !== 'list';
+      mapContent.hidden = section !== 'map';
+      if (section === 'list' && !view) mountList();
+      if (section === 'map') window.etchHubMountConnections?.(mapContent, id || activePostId(), id ? 'page' : 'site');
+      listTab.setAttribute('aria-current', section === 'list' ? 'page' : 'false');
+      siteMapTab.setAttribute('aria-current', section === 'map' && !id ? 'page' : 'false');
+      pageMapTab.setAttribute('aria-current', section === 'map' && id ? 'page' : 'false');
+      if (section === 'map') mapItem.expanded = true;
+      settingsManager.section = section;
+      syncSidebarActiveState();
       content.hidden = section !== 'general';
       hierarchyContent.hidden = section !== 'hierarchy';
       buttonContent.hidden = section !== 'buttons';
@@ -1295,52 +1421,47 @@
       transferTab.setAttribute('aria-current', section === 'transfer' ? 'page' : 'false');
       body.scrollTop = 0;
     };
-    settingsManager = { panel, back, launch: null, trigger: null };
-    showSection('general');
+    settingsManager = { panel, back, menuToggle, launch: null, trigger: null, showSection };
+    showSection('list');
     panel.addEventListener('keydown', event => {
       if (event.key === 'Escape') { event.preventDefault(); back.click(); }
-      if (event.key === 's' && (event.metaKey || event.ctrlKey)) event.stopPropagation();
+      event.stopPropagation();
     });
     panel.addEventListener('keyup', event => event.stopPropagation());
     let attempts = 0;
     const addToSettingsBar = window.setInterval(() => {
-      const api = window.etchControls?.builder?.settingsBar?.bottom;
-      const bar = document.querySelector('.settings-bar__section.bottom');
-      if (!api || !bar?.querySelector('button')) {
+      const controls = window.etchControls?.builder?.settingsBar;
+      const top = document.querySelector('.settings-bar__section.top');
+      const bottom = document.querySelector('.settings-bar__section.bottom');
+      if (!controls?.top || !controls?.bottom || !top?.querySelector('button') || !bottom) {
         if (++attempts > 120) window.clearInterval(addToSettingsBar);
         return;
       }
-      const before = new Set(bar.querySelectorAll('button'));
-      api.addBefore({ id: 'etch-hub-sort-settings', icon: 'settings', tooltip: __('Hub search and sort', 'etch-content-hub-sort'), callback: () => panel.hidden ? openSettingsPanel() : back.click() });
       window.clearInterval(addToSettingsBar);
-      const observer = new MutationObserver(() => {
-        const trigger = [...bar.querySelectorAll('button')].find(node => !before.has(node));
-        if (!trigger) return;
-        observer.disconnect();
-        trigger.setAttribute('aria-label', __('Hub search and sort settings', 'etch-content-hub-sort'));
-        trigger.setAttribute('aria-controls', panel.id);
-        trigger.setAttribute('aria-expanded', 'false');
-        trigger.classList.add('etch-hub-sort-bar-trigger');
-        const rememberOrigin = () => {
-          settingsManager.pendingReturnToHub = !!document.querySelector('.content-hub__content');
-        };
-        trigger.addEventListener('pointerdown', rememberOrigin, { capture: true });
-        trigger.addEventListener('keydown', event => {
-          if (event.key === 'Enter' || event.key === ' ') rememberOrigin();
-        }, { capture: true });
-        const drawIcon = () => {
-          if (trigger.querySelector('.etch-hub-sort-bar-icon')) return;
-          const icon = element('img', 'etch-hub-sort-bar-icon');
-          icon.src = `${config.assetUrl}add-to-list-stroke-rounded.svg`;
-          icon.alt = '';
-          trigger.appendChild(icon);
-        };
-        drawIcon();
-        new MutationObserver(drawIcon).observe(trigger, { childList: true, subtree: true });
-        settingsManager.trigger = trigger;
-        syncSidebarShortcut();
+      syncNativeContentHub();
+      new MutationObserver(syncNativeContentHub).observe(top, { childList: true, subtree: true });
+      const register = (api, bar, id, tooltip, className, property, section) => {
+        const before = new Set(bar.querySelectorAll('button'));
+        const observer = new MutationObserver(() => {
+          const trigger = [...bar.querySelectorAll('button')].find(node => !before.has(node));
+          if (!trigger) return;
+          observer.disconnect();
+          trigger.setAttribute('aria-label', tooltip);
+          trigger.setAttribute('aria-controls', panel.id);
+          trigger.classList.add(className);
+          settingsManager[property] = trigger;
+          syncSidebarActiveState();
+          syncSidebarShortcut();
+        });
+        observer.observe(bar, { childList: true, subtree: true });
+        api.addBefore({ id, icon: sidebarIconDefinition(section === 'map' ? 'connections' : 'content'), tooltip, callback: () => toggleSidebarView(section) });
+      };
+      register(controls.top, top, 'etch-hub-sort-settings', __('Content Explorer', 'etch-content-hub-sort'), 'etch-hub-sort-bar-trigger', 'trigger', 'list');
+      register(controls.bottom, bottom, 'etch-current-page-connections', __('Current item connections', 'etch-content-hub-sort'), 'etch-page-connections-trigger', 'connectionsTrigger', 'map');
+      top.closest('.settings-bar').addEventListener('click', event => {
+        const target = event.target.closest('button');
+        if (target && !target.classList.contains('etch-hub-sort-bar-trigger') && !target.classList.contains('etch-page-connections-trigger')) closeContentPanel();
       });
-      observer.observe(bar, { childList: true, subtree: true });
     }, 250);
 
     const addSetting = ({ label, ariaLabel, description, key, configKey }) => {
@@ -1380,6 +1501,7 @@
           paint();
           status.textContent = __('Saved', 'etch-content-hub-sort');
           if (key === 'enabled') refresh();
+          if (key === 'hide_native_content_hub') syncNativeContentHub();
           if (key === 'enabled' || key === 'show_sidebar_icon') syncSidebarShortcut();
           else if (view?.data && !view.state.native) renderRows(view, view.data);
         } catch (error) {
@@ -1399,52 +1521,18 @@
       description: __('Search, sort, and page through all content. Changes save immediately.', 'etch-content-hub-sort'),
       key: 'enabled', configKey: 'enabled',
     });
-    const sidebarSetting = addSetting({
-      label: __('Show settings shortcut in sidebar', 'etch-content-hub-sort'),
-      ariaLabel: __('Show Hub settings shortcut in the left sidebar', 'etch-content-hub-sort'),
-      description: __('Hide this shortcut to leave room for other add-ons. It stays available when search and sorting is off.', 'etch-content-hub-sort'),
-      key: 'show_sidebar_icon', configKey: 'showSidebarIcon',
+    const nativeHubSetting = addSetting({
+      label: __('Hide native Content Hub icon', 'etch-content-hub-sort'),
+      ariaLabel: __('Hide native Content Hub icon', 'etch-content-hub-sort'),
+      description: __('Hide Etch’s original sidebar shortcut. Content Explorer stays available in the top sidebar section.', 'etch-content-hub-sort'),
+      key: 'hide_native_content_hub', configKey: 'hideNativeContentHub',
     });
     const wordpressEditSetting = addSetting({
       label: __('Show Edit in WordPress', 'etch-content-hub-sort'),
-      ariaLabel: __('Show Edit in WordPress buttons in the Content Hub table', 'etch-content-hub-sort'),
+      ariaLabel: __('Show Edit in WordPress buttons in List', 'etch-content-hub-sort'),
       description: __('Open the WordPress editor and custom fields for items you can edit.', 'etch-content-hub-sort'),
       key: 'show_wordpress_edit', configKey: 'showWordPressEdit',
     });
-    const viewRow = element('div', 'etch-hub-sort-setting');
-    const viewWrapper = element('div', 'settings-toggle-input-wrapper svelte-2pz811');
-    const viewLabel = element('span', 'settings-toggle-name svelte-2pz811', __('Default view', 'etch-content-hub-sort'));
-    const viewSelect = element('select', 'etch-hub-sort-placement-select');
-    viewSelect.setAttribute('aria-label', __('Default Content Hub view', 'etch-content-hub-sort'));
-    for (const [value, label] of [
-      ['browse', __('Search and Sort', 'etch-content-hub-sort')],
-      ['etch', __('Etch table', 'etch-content-hub-sort')],
-    ]) {
-      const option = element('option', '', label);
-      option.value = value;
-      viewSelect.appendChild(option);
-    }
-    viewSelect.value = config.defaultView;
-    const viewHelp = element('p', 'settings-toggle-description svelte-2pz811', __('Used when the builder loads. A view you switch to stays active across content types until you switch back or reload.', 'etch-content-hub-sort'));
-    const viewStatus = element('span', 'etch-hub-sort-setting-status');
-    viewStatus.setAttribute('role', 'status');
-    viewSelect.addEventListener('change', async () => {
-      viewSelect.disabled = true;
-      viewStatus.textContent = __('Saving…', 'etch-content-hub-sort');
-      try {
-        const data = await saveSettings({ default_view: viewSelect.value });
-        config.defaultView = data.default_view;
-        viewStatus.textContent = __('Saved', 'etch-content-hub-sort');
-      } catch (error) {
-        viewSelect.value = config.defaultView;
-        viewStatus.textContent = error.message || __('Could not save setting.', 'etch-content-hub-sort');
-      } finally {
-        viewSelect.disabled = false;
-      }
-    });
-    viewWrapper.append(viewLabel, viewSelect);
-    viewRow.append(viewWrapper, viewHelp, viewStatus);
-    content.appendChild(viewRow);
     const placement = element('div', 'settings-toggle svelte-2pz811 etch-hub-sort-setting');
     const placementWrapper = element('div', 'settings-toggle-input-wrapper svelte-2pz811');
     const placementLabel = element('span', 'settings-toggle-name svelte-2pz811', __('Actions placement', 'etch-content-hub-sort'));
@@ -1656,10 +1744,9 @@
       controls.append(...actions);
       row.replaceChildren(copy, controls);
     };
+    arrangeSetting(nativeHubSetting.row, nativeHubSetting.name, nativeHubSetting.help, nativeHubSetting.status, nativeHubSetting.toggle);
     arrangeSetting(enableSetting.row, enableSetting.name, enableSetting.help, enableSetting.status, enableSetting.toggle);
-    arrangeSetting(sidebarSetting.row, sidebarSetting.name, sidebarSetting.help, sidebarSetting.status, sidebarSetting.toggle);
     arrangeSetting(wordpressEditSetting.row, wordpressEditSetting.name, wordpressEditSetting.help, wordpressEditSetting.status, wordpressEditSetting.toggle);
-    arrangeSetting(viewRow, viewLabel, viewHelp, viewStatus, viewSelect);
     arrangeSetting(placement, placementLabel, placementHelp, placementStatus, placementSelect);
     arrangeSetting(defaultRow, defaultLabel, defaultHelp, defaultStatus, defaultControls);
     arrangeSetting(termDefaultRow, termDefaultLabel, termDefaultHelp, termDefaultStatus, termDefaultControls);
@@ -1676,7 +1763,8 @@
       section.appendChild(list);
       content.appendChild(section);
     };
-    settingsGroup(__('Content Hub', 'etch-content-hub-sort'), enableSetting.row, viewRow, sidebarSetting.row);
+    enableSetting.row.remove();
+    settingsGroup(__('Sidebar', 'etch-content-hub-sort'), nativeHubSetting.row);
     settingsGroup(__('Table', 'etch-content-hub-sort'), wordpressEditSetting.row, placement, defaultRow, termDefaultRow);
     settingsGroup(__('Appearance', 'etch-content-hub-sort'), colorRow);
 
@@ -1821,7 +1909,7 @@
 
     const transferIntro = element('div', 'etch-hub-sort-manager-intro');
     transferIntro.append(element('h2', '', __('Settings transfer', 'etch-content-hub-sort')),
-      element('p', '', __('Copy your Etch Content Hub Sort settings to another site, or keep a backup.', 'etch-content-hub-sort')));
+      element('p', '', __('Copy your Content Explorer for Etch settings to another site, or keep a backup.', 'etch-content-hub-sort')));
     const exportCard = element('section', 'etch-hub-sort-transfer-card');
     const exportNotice = element('p', 'etch-hub-sort-setting-status');
     exportNotice.setAttribute('role', 'status');
@@ -1903,7 +1991,7 @@
         const data = JSON.parse(await file.text());
         if (generation !== fileGeneration) return;
         if (data?.plugin !== 'etch-content-hub-sort' || data.format_version !== 1 || !data.settings || typeof data.settings !== 'object' || Array.isArray(data.settings)) {
-          throw new Error(__('Choose a valid Etch Content Hub Sort settings export.', 'etch-content-hub-sort'));
+          throw new Error(__('Choose a valid Content Explorer for Etch settings export.', 'etch-content-hub-sort'));
         }
         importDocument = data;
         importNotice.textContent = sprintf(__('Ready to import %s. All settings will be validated before changes are made.', 'etch-content-hub-sort'), file.name);
@@ -2109,23 +2197,8 @@
     }
   }
 
-  function scheduleRefresh() {
-    const selected = selectedType();
-    const selection = selected ? `${selected.kind}:${selected.type}` : '';
-    if (selection !== observedSelection) {
-      observedSelection = selection;
-      refresh();
-      return;
-    }
-    if (scheduled) return;
-    scheduled = true;
-    setTimeout(() => { scheduled = false; refresh(); }, 60);
-  }
   function start() {
-    const selected = selectedType();
-    observedSelection = selected ? `${selected.kind}:${selected.type}` : '';
-    refresh();
-    new MutationObserver(scheduleRefresh).observe(document.body, { childList: true, subtree: true });
+    mountSettingsPanel();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();

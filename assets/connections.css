@@ -1,0 +1,1041 @@
+/* Delta 0.5.0 map styles, copyright 21Press, GPL-2.0-or-later. Scoped and adapted for this plugin. */
+:where(.etch-delta-map) .graph-head { display: flex; white-space: nowrap; overflow: hidden; align-items: center; gap: 8px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--delta-border); font-size: 13px; }
+:where(.etch-delta-map) .graph-head b { font-size: 14px; }
+:where(.etch-delta-map) .graph-head .spacer { flex: 1; }
+:where(.etch-delta-map) .graph-ico svg { width: 18px; height: 18px; display: block; color: var(--delta-accent-text); }
+:where(.etch-delta-map) .graph-sub, :where(.etch-delta-map) .graph-note { overflow: hidden; text-overflow: ellipsis; color: var(--delta-muted); font-size: 12px; }
+:where(.etch-delta-map) .graph-stage { flex: 1; min-height: 0; overflow: auto; display: flex; padding: 28px 32px; }
+/* The graph keeps its size; a narrow window scrolls it instead of squeezing it. */
+:where(.etch-delta-map) .graph-canvas { position: relative; margin: auto; min-width: 820px; display: flex; flex-direction: column; gap: 56px; }
+:where(.etch-delta-map) .graph-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; color: var(--delta-muted); }
+:where(.etch-delta-map) .graph-lines path { fill: none; stroke: currentColor; stroke-width: 1.25; opacity: .55; }
+:where(.etch-delta-map) .graph-lines path.arrow { marker-end: url(#ah); }
+:where(.etch-delta-map) .graph-lines path.shared { stroke: var(--delta-shared); opacity: .7; stroke-dasharray: 3 3; }
+:where(.etch-delta-map) .graph-grid { position: relative; display: grid; grid-template-columns: 1fr auto 1fr; gap: 72px; align-items: center; }
+:where(.etch-delta-map) .gcol { display: flex; flex-direction: column; gap: 8px; }
+:where(.etch-delta-map) .gcol.center { align-items: center; }
+:where(.etch-delta-map) .gcol.row { position: relative; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+:where(.etch-delta-map) .gcol.row .gcol-title { width: 100%; text-align: center; }
+:where(.etch-delta-map) .gcol-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--delta-muted); }
+:where(.etch-delta-map) .gcol-title .count { padding: 0 5px; border-radius: 3px; background: var(--delta-panel-soft); font-weight: 500; }
+:where(.etch-delta-map) .gnode { position: relative; display: flex; flex-direction: column; gap: 1px; min-width: 150px; max-width: 220px; padding: 8px 12px 8px 26px; text-align: left; border: 1px solid var(--delta-border); border-radius: 8px; background: var(--delta-panel); cursor: pointer; }
+:where(.etch-delta-map) .gnode::before { content: ""; position: absolute; left: 11px; top: 13px; width: 8px; height: 8px; border-radius: 50%; background: var(--delta-muted); }
+:where(.etch-delta-map) .gnode b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(.etch-delta-map) .gnode span { font-size: 11px; color: var(--delta-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(.etch-delta-map) .gnode:hover { border-color: var(--delta-fg); }
+:where(.etch-delta-map) .gnode.shared { border-color: color-mix(in srgb, var(--delta-shared) 45%, var(--delta-border)); background: var(--delta-shared-bg); }
+:where(.etch-delta-map) .gnode.shared::before { background: var(--delta-shared); }
+:where(.etch-delta-map) .gnode.here { min-width: 190px; padding: 12px 16px 12px 30px; border: 2px solid var(--delta-accent); background: var(--delta-accent-soft); }
+:where(.etch-delta-map) .gnode.here::before { left: 13px; top: 18px; background: var(--delta-ok); }
+:where(.etch-delta-map) .gnode.here b { font-size: 15px; }
+:where(.etch-delta-map) .graph-legend { display: flex; gap: 16px; padding: 8px 16px; border-top: 1px solid var(--delta-border); font-size: 11px; color: var(--delta-muted); }
+:where(.etch-delta-map) .graph-legend .dot { display: inline-block; width: 8px; height: 8px; margin-inline-end: 6px; border-radius: 50%; background: var(--delta-muted); vertical-align: 0; }
+:where(.etch-delta-map) .graph-legend .dot.here { background: var(--delta-ok); }
+:where(.etch-delta-map) .graph-legend .dot.shared { background: var(--delta-shared); }
+:where(.etch-delta-map) .gnode[aria-pressed="true"] { outline: 2px solid var(--delta-fg); outline-offset: 2px; }
+:where(.etch-delta-map) .gnode.here[aria-pressed="false"] { outline: none; }
+:where(.etch-delta-map) .gd-title { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+:where(.etch-delta-map) .gd-title b { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(.etch-delta-map) .gd-sub { margin: 2px 0 10px 16px; font-size: 12px; color: var(--delta-muted); }
+:where(.etch-delta-map) .gd-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 7px 0; border-top: 1px solid var(--delta-border); font-size: 13px; }
+:where(.etch-delta-map) .gd-row span { color: var(--delta-muted); }
+:where(.etch-delta-map) .gd-row b { font-weight: 500; text-align: right; overflow-wrap: anywhere; }
+:where(.etch-delta-map) .gd-hint { margin: 10px 2px 0; font-size: 12px; line-height: 1.5; color: var(--delta-muted); }
+:where(.etch-delta-map) .gd-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+:where(.etch-delta-map) .gd-actions .btn { justify-content: center; }
+:where(.etch-delta-map) .gd-actions .btn:disabled { opacity: .45; cursor: not-allowed; }
+:where(.etch-delta-map) .graph-sub { min-width: 0; }
+/* Balanced tree: titles sit above their group without pushing the cards, so this page lines up with the middle of each stack. */
+:where(.etch-delta-map) .graph-canvas { gap: 84px; }
+:where(.etch-delta-map) .gcol { position: relative; }
+:where(.etch-delta-map) .gcol-title { position: absolute; bottom: calc(100% + 10px); left: 0; white-space: nowrap; }
+:where(.etch-delta-map) .gcol.row .gcol-title { width: auto; text-align: left; }
+:where(.etch-delta-map) .gcol.from { align-items: flex-end; }
+:where(.etch-delta-map) .gcol.to { align-items: flex-start; }
+:where(.etch-delta-map) .gcol.from .gcol-title { left: auto; right: 0; width: 200px; }
+:where(.etch-delta-map) .gnode { width: 200px; min-width: 0; max-width: none; }
+:where(.etch-delta-map) .gnode.here { width: 220px; }
+:where(.etch-delta-map) .graph-grid { gap: 96px; }
+:where(.etch-delta-map) .gempty { width: 200px; padding: 10px 12px; border: 1px dashed var(--delta-border); border-radius: 8px; font-size: 12px; color: var(--delta-muted); }
+:where(.etch-delta-map) .gcol.row { align-self: center; }
+/* the row is only as wide as its cards, so its title sits above the first card */
+:where(.etch-delta-map) .gcol.row { width: fit-content; }
+/* The large views' header (Map, Sketchbook, Style guide) matches the panel header's height. */
+:where(.etch-delta-map) .graph-head { box-sizing: border-box; min-height: 55px; }
+
+/* ---------- Page | Site tabs: nested in the side panel, as in the Memory view ---------- */
+:where(.etch-delta-map) .map-tabs { margin: 4px 0 12px; padding: 0; position: static; }
+
+/* Both tabs sit on the admin Map's dot grid. The Site graph moves and scales it with the view. */
+:where(.etch-delta-map) .graph-stage, :where(.etch-delta-map) .site-stage {
+	background-color: var(--delta-panel);
+	/* A crisp 1px square in the top-left corner of each 16px tile. */
+	background-image: conic-gradient(from 270deg at 1px 1px, color-mix(in srgb, var(--delta-fg) 8%, var(--delta-panel)) 0 90deg, transparent 0);
+	background-size: 16px 16px;
+}
+
+/* ---------- Site: the admin Map's graph (its styles come from the dashboard's graph.css) ---------- */
+/* The line colours the admin sets on its Map page. */
+:where(.etch-delta-map) .site-stage {
+	--delta-graph-line: color-mix(in srgb, var(--delta-fg) 24%, var(--delta-panel));
+	--delta-graph-line-soft: color-mix(in srgb, var(--delta-fg) 13%, var(--delta-panel));
+	--delta-graph-hair: color-mix(in srgb, var(--delta-fg) 9%, transparent);
+	position: relative; flex: 1; min-height: 0; overflow: hidden;
+}
+:where(.etch-delta-map) .site-find { display: flex; align-items: center; gap: 6px; width: 200px; padding: 0 8px 0 6px; border: 1px solid var(--delta-border); border-radius: 6px; color: var(--delta-muted); }
+:where(.etch-delta-map) .site-find:focus-within { border-color: var(--delta-accent); }
+:where(.etch-delta-map) .site-find svg { flex: none; width: 14px; height: 14px; }
+:where(.etch-delta-map) .site-find input { flex: 1; min-width: 0; padding: 6px 0; border: 0; outline: 0; background: none; color: var(--delta-fg); font: inherit; font-size: 12px; }
+:where(.etch-delta-map) .site-find input::-webkit-search-cancel-button { display: none; }
+:where(.etch-delta-map) .site-hint { overflow: hidden; text-overflow: ellipsis; color: var(--delta-muted); font-size: 12px; }
+:where(.etch-delta-map) .site-hint[hidden] { display: none; }
+
+/* Details of the picked node, in the side panel. */
+:where(.etch-delta-map) .gd .dot.square, :where(.etch-delta-map) .gd-rel .dot.square { border-radius: 0; transform: rotate(45deg) scale(.85); }
+:where(.etch-delta-map) .gd-desc { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: var(--delta-muted); }
+:where(.etch-delta-map) .gd-actions { flex-direction: row; flex-wrap: wrap; }
+:where(.etch-delta-map) .gd-actions .btn { flex: 1 1 auto; }
+:where(.etch-delta-map) .gd-actions .btn.primary { flex-basis: 100%; }
+:where(.etch-delta-map) .gd-rel h4 { margin: 18px 0 6px; font-size: 12px; font-weight: 500; color: var(--delta-muted); }
+:where(.etch-delta-map) .gd-rel h4 span { opacity: .6; }
+:where(.etch-delta-map) .gd-rel ul { margin: 0; padding: 0; list-style: none; }
+:where(.etch-delta-map) .gd-rel button { display: flex; align-items: center; gap: 10px; width: calc(100% + 16px); margin: 0 -8px; padding: 5px 8px; border: 0; border-radius: 6px; background: none; color: var(--delta-fg); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+:where(.etch-delta-map) .gd-rel button:hover { background: var(--delta-panel-soft); }
+:where(.etch-delta-map) .gd-rel .dot { display: inline-block; flex: none; width: 6px; height: 6px; border-radius: 50%; }
+
+
+/* Map page (content graph, site map, agent tree). Uses the dashboard tokens (--delta-*). */
+
+.delta-graph-page {
+  /* Solid line colours: mixed with the panel colour, not see-through. */
+  --delta-graph-line: color-mix(in srgb, var(--delta-fg) 24%, var(--delta-panel));
+  --delta-graph-line-soft: color-mix(in srgb, var(--delta-fg) 13%, var(--delta-panel));
+  --delta-graph-hair: color-mix(in srgb, var(--delta-fg) 9%, transparent);
+}
+
+.delta-graph-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: none;
+}
+
+.delta-graph-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.delta-graph-head .delta-lede {
+  margin-bottom: 0;
+}
+
+.etch-delta-map .delta-graph-search {
+  width: 220px;
+  max-width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--delta-graph-hair);
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--delta-fg);
+  font-family: var(--delta-font-ui);
+  font-size: 13px;
+}
+
+.etch-delta-map .delta-graph-search:focus {
+  border-color: var(--delta-accent);
+  box-shadow: none;
+  outline: none;
+}
+
+/* One line under the search box: what Enter will do. */
+.etch-delta-map .delta-graph-hint {
+  margin: -6px 0 10px;
+  color: var(--delta-muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+/* Filter chips: a dot and a word, no pill. */
+.delta-graph-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+.delta-graph-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--delta-fg);
+  font-family: var(--delta-font-ui);
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+
+.delta-graph-chip:hover {
+  opacity: .7;
+}
+
+.delta-graph-chip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transition: transform .2s, opacity .2s;
+}
+
+.delta-graph-chip[aria-pressed="false"] {
+  color: var(--delta-muted);
+  opacity: .55;
+  text-decoration: line-through;
+}
+
+.delta-graph-chip[aria-pressed="false"] .delta-graph-chip__dot {
+  transform: scale(.6);
+  opacity: .4;
+  box-shadow: none;
+}
+
+
+.delta-graph-chip--link .delta-graph-chip__dot {
+  width: 14px;
+  height: 1px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Stage */
+.etch-delta-map .delta-graph-stage {
+  position: relative;
+  height: calc(100vh - 32px - 376px);
+  min-height: 420px;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--delta-graph-hair);
+  border-radius: 10px;
+  box-shadow: none;
+  /* Subtle dot grid. The engine moves and scales it with the view (see applyView). */
+  background-color: var(--delta-panel);
+  /* A crisp 1px square in the top-left corner of each tile. */
+  background-image: conic-gradient(from 270deg at 1px 1px, color-mix(in srgb, var(--delta-fg) 8%, var(--delta-panel)) 0 90deg, transparent 0);
+  background-size: 16px 16px;
+}
+
+.delta-graph-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.delta-graph-svg.is-panning {
+  cursor: grabbing;
+}
+
+/* Edges: hairlines */
+.delta-graph-edge {
+  stroke: var(--delta-graph-line);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  transition: opacity .25s, stroke .25s;
+}
+
+.delta-graph-edge--in {
+  stroke: var(--delta-graph-line-soft);
+}
+
+.delta-graph-edge--uses {
+  stroke-dasharray: 1 4;
+  stroke-linecap: round;
+}
+
+.delta-graph-edge--link {
+  stroke: color-mix(in srgb, var(--delta-accent) 70%, var(--delta-panel));
+  stroke-width: 1.5;
+}
+
+.delta-graph-arrow {
+  fill: var(--delta-accent);
+}
+
+/* Nodes: plain dots, no outline */
+.delta-graph-node {
+  cursor: pointer;
+  outline: none;
+  transition: opacity .25s;
+}
+
+.delta-graph-shape {
+  fill: var(--c);
+  stroke: none;
+  transition: transform .2s;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.delta-graph-node--term .delta-graph-shape,
+.delta-graph-node--tax .delta-graph-shape {
+  /* keep the 45° turn from the attribute; scale is applied on the group instead */
+  transition: none;
+}
+
+.delta-graph-halo {
+  fill: var(--c);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+
+.delta-graph-node--type .delta-graph-halo,
+.delta-graph-node--tax .delta-graph-halo {
+  opacity: .1;
+}
+
+.delta-graph-node:hover .delta-graph-halo,
+.delta-graph-node:focus-visible .delta-graph-halo {
+  opacity: .18;
+}
+
+.delta-graph-node.is-selected .delta-graph-halo {
+  opacity: .26;
+}
+
+/* The page being looked at (the Front panel's Site map): a ring round its dot, and its name always shows. */
+/* In the node's own colour, plus a soft ring that grows and fades. */
+.delta-graph-here,
+.delta-graph-pulse {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.delta-graph-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: delta-graph-pulse 2.4s ease-out infinite;
+}
+
+@keyframes delta-graph-pulse {
+  from {
+    opacity: .6;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .delta-graph-pulse {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.delta-graph-svg .delta-graph-node.is-here .delta-graph-label {
+  display: block;
+  fill: var(--delta-fg);
+  font-weight: 600;
+  opacity: 1;
+}
+
+.delta-graph-label {
+  fill: var(--delta-muted);
+  font-family: var(--delta-font-ui);
+  font-size: 9px;
+  letter-spacing: .01em;
+  pointer-events: none;
+  opacity: .85;
+}
+
+.delta-graph-label--big {
+  fill: var(--delta-fg);
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 1;
+}
+
+/* Small labels stay hidden until you zoom in, hover or select. */
+.delta-graph-svg .delta-graph-label:not(.delta-graph-label--big) {
+  display: none;
+}
+
+.delta-graph-svg.is-near-zoom .delta-graph-label:not(.delta-graph-label--big),
+.delta-graph-node:hover .delta-graph-label:not(.delta-graph-label--big) {
+  display: block;
+}
+
+/* Focus: dim everything that is not connected. */
+.delta-graph-svg.has-focus .delta-graph-node:not(.is-near),
+.delta-graph-svg.has-search .delta-graph-node:not(.is-match) {
+  opacity: .12;
+}
+
+.delta-graph-svg.has-focus .delta-graph-edge:not(.is-near) {
+  opacity: .08;
+}
+
+.delta-graph-svg.has-focus .delta-graph-edge.is-near:not(.delta-graph-edge--link) {
+  stroke: color-mix(in srgb, var(--delta-fg) 50%, var(--delta-panel));
+}
+
+.delta-graph-svg.has-focus .delta-graph-edge--link.is-near {
+  stroke: var(--delta-accent);
+  stroke-width: 2;
+}
+
+.delta-graph-svg.has-focus .delta-graph-node.is-near .delta-graph-label,
+.delta-graph-svg.has-search .delta-graph-node.is-match .delta-graph-label {
+  display: block;
+  fill: var(--delta-fg);
+  opacity: 1;
+}
+
+/* Tools + legend */
+.delta-graph-tools {
+  position: absolute;
+  left: 18px;
+  bottom: 16px;
+  display: flex;
+  gap: 2px;
+}
+
+.delta-graph-tool {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--delta-muted);
+  font-family: var(--delta-font-ui);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .2s, background .2s;
+}
+
+.delta-graph-tool--wide {
+  font-size: 12px;
+}
+
+.delta-graph-tool:hover {
+  color: var(--delta-fg);
+  background: var(--delta-graph-hair);
+}
+
+.delta-graph-legend {
+  position: absolute;
+  left: 20px;
+  top: 16px;
+  display: flex;
+  gap: 18px;
+  color: var(--delta-muted);
+  font-size: 11px;
+}
+
+.delta-graph-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.delta-graph-key {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--delta-muted);
+}
+
+.delta-graph-key--circle {
+  border-radius: 50%;
+}
+
+.delta-graph-key--square {
+  width: 5px;
+  height: 5px;
+  transform: rotate(45deg);
+}
+
+.delta-graph-key--line,
+.delta-graph-key--link {
+  width: 16px;
+  height: 1px;
+}
+
+.delta-graph-key--link {
+  background: var(--delta-accent);
+}
+
+/* Side panel: glass */
+.delta-graph-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  max-width: 100%;
+  padding: 18px 22px 24px;
+  overflow-y: auto;
+  border-left: 1px solid var(--delta-graph-hair);
+  background: var(--delta-panel-soft);
+  box-sizing: border-box;
+  animation: delta-graph-in .2s ease-out;
+}
+
+@keyframes delta-graph-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+
+.delta-graph-panel__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.etch-delta-map .delta-graph-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: none;
+  color: var(--delta-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.delta-graph-kind i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.delta-graph-close {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--delta-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.delta-graph-close:hover {
+  background: var(--delta-graph-hair);
+  color: var(--delta-fg);
+}
+
+.delta-graph-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  background: var(--delta-panel-soft);
+}
+
+.etch-delta-map .delta-graph-panel .delta-graph-title {
+  margin: 0 0 14px;
+  color: var(--delta-fg);
+  font-family: var(--delta-font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  line-height: 1.3;
+  text-transform: none;
+}
+
+.delta-graph-meta {
+  margin: 0 0 18px;
+}
+
+.delta-graph-meta > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--delta-graph-hair);
+  font-size: 12px;
+}
+
+.delta-graph-meta dt {
+  color: var(--delta-muted);
+}
+
+.delta-graph-meta dd {
+  margin: 0;
+  color: var(--delta-fg);
+  text-align: right;
+}
+
+.delta-graph-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+
+.etch-delta-map .delta-graph-actions .button {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--delta-graph-hair);
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--delta-fg);
+  font-size: 12px;
+  line-height: 28px;
+  transition: background .2s, border-color .2s;
+}
+
+.etch-delta-map .delta-graph-actions .button:hover {
+  border-color: var(--delta-muted);
+  background: var(--delta-graph-hair);
+}
+
+.etch-delta-map .delta-graph-actions .button-primary {
+  border-color: var(--delta-accent);
+  background: var(--delta-accent);
+  color: var(--delta-accent-contrast);
+}
+
+.etch-delta-map .delta-graph-actions .button-primary:hover {
+  border-color: var(--delta-accent-hover);
+  background: var(--delta-accent-hover);
+}
+
+.etch-delta-map .delta-graph-panel .delta-graph-rel h4 {
+  margin: 18px 0 6px;
+  color: var(--delta-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.delta-graph-rel h4 span {
+  opacity: .6;
+}
+
+.delta-graph-rel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.delta-graph-rel li {
+  margin: 0;
+}
+
+.delta-graph-rel button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% + 16px);
+  padding: 5px 8px;
+  margin: 0 -8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--delta-fg);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.delta-graph-rel button:hover {
+  background: var(--delta-graph-hair);
+}
+
+.delta-graph-rel button i {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.delta-graph-rel button i.is-square {
+  border-radius: 0;
+  transform: rotate(45deg);
+}
+
+.delta-graph-empty {
+  color: var(--delta-muted);
+  font-size: 12.5px;
+}
+
+@media (max-width: 782px) {
+  .delta-graph-chip--link {
+    margin-left: 0;
+  }
+}
+
+/* Tabs + site map */
+.etch-delta-map .delta-graph-tabs {
+  margin: 0;
+}
+
+.delta-graph-filters[hidden] {
+  display: none;
+}
+
+.delta-graph-branch {
+  fill: none;
+  stroke: var(--delta-graph-line);
+}
+
+.delta-graph-svg .delta-graph-label.delta-graph-label--map {
+  display: block;
+  fill: var(--delta-fg);
+  font-size: 10px;
+  opacity: .8;
+}
+
+.delta-graph-node--map.is-branch .delta-graph-label--map {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 1;
+}
+
+.delta-graph-node--map.is-branch .delta-graph-halo {
+  opacity: .1;
+}
+
+.delta-graph-count {
+  fill: var(--delta-muted);
+}
+
+.delta-graph-node--map:hover .delta-graph-label--map,
+.delta-graph-node--map.is-selected .delta-graph-label--map {
+  opacity: 1;
+}
+
+
+/* Zoomed out: dots only. Lines of the hovered / selected node still show. */
+.delta-graph-svg:not(.is-lines) .delta-graph-edge:not(.delta-graph-branch):not(.is-near) {
+  opacity: 0;
+}
+
+.delta-graph-toggle {
+  cursor: pointer;
+  outline: none;
+}
+
+.delta-graph-toggle rect {
+  /* Solid, so the branch lines that start behind it do not show through. */
+  fill: color-mix(in srgb, var(--delta-fg) 16%, var(--delta-panel));
+  transition: fill .2s;
+}
+
+.delta-graph-toggle text {
+  fill: var(--delta-fg);
+  font-weight: 600;
+  font-family: var(--delta-font-ui);
+  font-size: 9.5px;
+  pointer-events: none;
+}
+
+.delta-graph-toggle:hover rect,
+.delta-graph-toggle:focus-visible rect {
+  fill: color-mix(in srgb, var(--delta-accent) 45%, var(--delta-panel));
+}
+
+.delta-graph-toggle:hover text {
+  fill: var(--delta-fg);
+}
+
+/* Invisible click areas */
+.delta-graph-hit {
+  fill: transparent;
+  stroke: none;
+}
+
+.delta-graph-node--map:hover .delta-graph-halo {
+  opacity: .18;
+}
+
+/* Display switches (the legend doubles as switches) */
+.delta-graph-legend {
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  right: 20px;
+}
+
+.delta-graph-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--delta-fg);
+  font: inherit;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+
+.delta-graph-switch:hover {
+  opacity: .7;
+}
+
+.delta-graph-switch[aria-pressed="false"] {
+  color: var(--delta-muted);
+  opacity: .5;
+  text-decoration: line-through;
+}
+
+.delta-graph-switch[aria-pressed="false"] .delta-graph-key {
+  opacity: .4;
+}
+
+.delta-graph-key--text {
+  width: auto;
+  height: auto;
+  background: none;
+}
+
+.delta-graph-key--text::before {
+  content: "Aa";
+  font-size: 10px;
+  font-style: normal;
+  color: var(--delta-muted);
+}
+
+.delta-graph-key--halo {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--delta-muted) 30%, transparent);
+  margin: 0 4px;
+}
+
+/* Labels off: names show only on hover or for the selected node and its neighbours. */
+.delta-graph-svg.no-labels.is-near-zoom .delta-graph-node:not(:hover):not(.is-near) .delta-graph-label:not(.delta-graph-label--big):not(.delta-graph-label--map) {
+  display: none;
+}
+
+.delta-graph-svg.no-halos [data-graph="nodes"] .delta-graph-halo {
+  opacity: 0;
+}
+
+/* The switches sit on a small solid strip, so nodes that pass behind stay readable. */
+.delta-graph-legend {
+  left: 10px;
+  top: 10px;
+  right: auto;
+  max-width: calc(100% - 20px);
+  padding: 3px 12px;
+  border-radius: 8px;
+  background: var(--delta-panel);
+  box-sizing: border-box;
+}
+
+/* Agent tree */
+.etch-delta-map .delta-graph-panel .delta-graph-desc {
+  margin: -4px 0 16px;
+  color: var(--delta-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.delta-graph-node--map.is-group .delta-graph-shape {
+  fill: var(--delta-fg);
+}
+
+.delta-graph-node--map.is-group .delta-graph-halo {
+  fill: var(--delta-fg);
+}
+
+/* Frame inside the React page */
+.delta-graph {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.delta-graph[hidden] {
+  display: none;
+}
+
+.delta-graph-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-height: 32px;
+}
+
+.delta-graph-bar .delta-graph-search {
+  margin-left: auto;
+}
+
+.delta-graph-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--delta-muted);
+  font-size: 13px;
+}
+
+/* Inside the stage: group filters top left, display switches top right. Both sit on a solid strip. */
+.delta-graph-stage .delta-graph-filters {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  max-width: calc(50% - 16px);
+  gap: 0 16px;
+  padding: 3px 12px;
+  border-radius: 8px;
+  background: var(--delta-panel);
+  box-sizing: border-box;
+}
+
+.delta-graph-stage .delta-graph-chip {
+  height: 22px;
+  font-size: 11px;
+}
+
+.delta-graph-stage .delta-graph-legend {
+  left: auto;
+  right: 10px;
+  max-width: calc(50% - 16px);
+  justify-content: flex-end;
+  transition: right .2s ease-out;
+}
+
+/* The drawer opens on the right, so the switches step aside. */
+.delta-graph-stage.has-panel .delta-graph-legend {
+  right: 350px;
+  max-width: calc(100% - 360px - 40%);
+}
+
+.delta-graph-stage.has-panel .delta-graph-filters {
+  max-width: 40%;
+}
+
+/* Tree tabs have no group filters, so their colour key takes the left corner. */
+.delta-graph-stage.is-map .delta-graph-legend {
+  left: 10px;
+  right: auto;
+  max-width: calc(100% - 20px);
+  justify-content: flex-start;
+}
+
+/* Fullscreen: the whole map block fills the window (and the screen, when the
+   browser grants real fullscreen); the stage takes the rest. */
+.etch-delta-map .delta-graph.is-full {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  padding: 16px;
+  background: var(--delta-bg);
+}
+
+.etch-delta-map .delta-graph.is-full .delta-graph-stage {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+.delta-graph-tool svg {
+  display: block;
+}
+
+/* Front-panel tokens and two-pane framing from Delta 0.5.0, dark appearance. */
+.etch-delta-map {
+ --delta-accent:#3858e9;--delta-panel:#272727;--delta-panel-soft:#2c2c2c;--delta-border:#3c3c3c;--delta-fg:#f3f1f1;--delta-muted:#949494;--delta-ok:#4ab866;
+ --delta-shared:#9b4dff;--delta-shared-bg:color-mix(in srgb,#9b4dff 26%,var(--delta-panel));--delta-accent-soft:color-mix(in srgb,var(--delta-accent) 26%,var(--delta-panel));
+ --delta-font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+ display:grid;grid-template-columns:minmax(0,1fr) 400px;width:100%;height:100%;min-height:0;color:var(--delta-fg);background:var(--delta-panel);font:13px/1.45 var(--delta-font-ui);-webkit-font-smoothing:antialiased;
+}
+.etch-delta-map * {box-sizing:border-box;}
+.etch-delta-map [hidden] {display:none!important;}
+.etch-delta-map :is(h2,h3,h4,p,ul) {margin:0;}
+.etch-delta-map button {font:inherit;color:inherit;cursor:pointer;}
+.etch-delta-map :is(button,input,a):focus-visible {outline:2px solid var(--delta-accent);outline-offset:2px;}
+.etch-delta-graph {display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-right:1px solid var(--delta-border);}
+.etch-delta-detail {min-width:0;min-height:0;overflow:auto;padding:12px 16px 24px;}
+.etch-delta-detail-content {margin-top:20px;}
+.etch-delta-map .section-label {font-size:12px;font-weight:600;margin:0 0 10px;}
+.etch-delta-map .has-action {display:flex;align-items:center;justify-content:space-between;}
+.etch-delta-map .selcard {padding:12px;border:1px solid var(--delta-border);border-radius:6px;}
+.etch-delta-map .dot {display:inline-block;flex:none;width:7px;height:7px;border-radius:50%;background:var(--delta-muted);}
+.etch-delta-map .btn {display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 12px;border:1px solid var(--delta-border);border-radius:6px;background:transparent;color:var(--delta-fg);font:inherit;font-size:12px;text-decoration:none;}
+.etch-delta-map .btn.primary {border-color:var(--delta-accent);background:var(--delta-accent);}
+.etch-delta-map .btn.clear {padding:2px 8px;border:0;color:var(--delta-muted);}
+.etch-delta-map .icon-btn {width:28px;height:28px;border:0;background:none;color:var(--delta-muted);font-size:22px;}
+.etch-delta-map .connection-icon {display:block;width:18px;height:18px;flex:none;background:currentColor;mask:url('ui-connections.svg') center/contain no-repeat;}
+.etch-delta-map .search-icon {width:12px;height:12px;border:1px solid currentColor;border-radius:50%;position:relative;}
+.etch-delta-map .search-icon::after {content:'';position:absolute;width:4px;height:1px;background:currentColor;right:-3px;bottom:-1px;transform:rotate(45deg);}
+.etch-delta-map .map-tabs {padding:0;margin:4px 0 12px;}
+.etch-delta-map .intab-group {display:flex;padding:2px;border:1px solid var(--delta-border);border-radius:7px;}
+.etch-delta-map .intab {flex:1;padding:5px 12px;background:transparent;border:1px solid transparent;border-radius:4px;font-size:12px;color:var(--delta-muted);}
+.etch-delta-map .intab[aria-selected="true"] {background:var(--delta-panel-soft);border-color:var(--delta-border);color:var(--delta-fg);}
+.etch-delta-map .v-hint {margin:auto;padding:20px;color:var(--delta-muted);}
+.etch-delta-map .site-stage {height:auto;min-height:0;flex:1;padding:0;margin:0;border:0;border-radius:0;box-shadow:none;}
+.etch-delta-map .gd-hint {margin:10px 2px 0;}
+.etch-delta-map .gd-rel h4 {margin:18px 0 6px;}
+.etch-delta-map .gd-rel ul {list-style:none;padding:0;}
+.etch-delta-map .gd-rel button {line-height:1.4;}
+.etch-delta-map .graph-legend {flex-wrap:wrap;}
+.etch-hub-sort-manager.has-delta-map,
+.etch-content-panel-open > .etch-hub-sort-manager.has-delta-map {grid-template-columns:minmax(0,1fr);}
+.etch-hub-sort-manager.has-delta-map > .etch-hub-sort-manager-sidebar {display:none;}
+@media(max-width:850px){.etch-delta-map{grid-template-columns:minmax(0,1fr) 300px;}}
+@media(max-width:600px){.etch-delta-map{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(260px,1fr) auto;overflow:auto;}.etch-delta-detail{max-height:300px;border-top:1px solid var(--delta-border);}.etch-delta-map .delta-graph-stage .delta-graph-filters,.etch-delta-map .delta-graph-stage .delta-graph-legend{max-width:calc(50% - 16px);}}
+.etch-delta-map {background:#1e1e1e;}
+.etch-delta-graph {margin:12px;border:1px solid var(--delta-border);border-radius:12px;background:var(--delta-panel);box-shadow:0 16px 40px #0008;}
+.etch-delta-detail {background:var(--delta-panel);border-left:1px solid var(--delta-border);}
+
+.etch-delta-map .map-back-to-list { flex-shrink: 0; cursor: pointer; }
+.etch-delta-map .map-back-to-list:focus-visible { outline: 2px solid var(--delta-accent); outline-offset: 2px; }
+
+.etch-delta-map .gd-actions .view-connections { flex-basis: 100%; cursor: pointer; }
+
+/* Searching retains only edges directly connected to a matching item. */
+.etch-delta-map .delta-graph-svg.has-search .delta-graph-edge:not(.is-search-related) { display: none; }
+
+.etch-delta-map .gcol.from .gcol-used-by-title { position: static; margin-block: 16px 4px; }
+
+/* Match the graph card's floating frame while retaining independent detail scrolling. */
+.etch-delta-map .etch-delta-detail {
+  margin: 12px 12px 12px 0;
+  border: 1px solid var(--delta-border);
+  border-radius: 12px;
+  background: var(--delta-panel);
+  box-shadow: 0 16px 40px #0008;
+}
+@media (max-width: 600px) {
+  .etch-delta-map .etch-delta-detail { margin: 0 12px 12px; }
+}
+
+.etch-delta-map .icon-btn:disabled { opacity: .35; cursor: default; }
