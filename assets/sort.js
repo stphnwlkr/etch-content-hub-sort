@@ -148,8 +148,8 @@
     applyButtonStyle(node);
     return node;
   };
-  const wordpressEditLink = item => {
-    if (!config.showWordPressEdit || !item.can_edit || !item.wordpress_edit_url) return null;
+  const wordpressEditLink = (item, isTerm = false) => {
+    if ((isTerm && !config.showWordPressEdit) || !item.can_edit || !item.wordpress_edit_url) return null;
     const link = element('a', 'etch-hub-sort-button etch-hub-sort-themed etch-hub-sort-wordpress', __('Edit in WordPress', 'etch-content-hub-sort'));
     link.href = item.wordpress_edit_url;
     link.target = '_blank';
@@ -941,7 +941,7 @@
       if (isTerm) {
         const actions = element('td', 'etch-hub-sort-actions-cell');
         const buttons = element('div', 'etch-hub-sort-action-buttons');
-        const wordpress = wordpressEditLink(item);
+        const wordpress = wordpressEditLink(item, true);
         if (wordpress) buttons.appendChild(wordpress);
         if (item.can_delete) {
           const remove = themedButton(__('Delete', 'etch-content-hub-sort'), async () => {
@@ -1264,6 +1264,66 @@
     panel.id = 'etch-hub-sort-manager';
     panel.hidden = true;
     panel.setAttribute('aria-label', __('Content Explorer', 'etch-content-hub-sort'));
+    const sidebarTooltip = element('span', 'etch-hub-sort-sidebar-tooltip');
+    sidebarTooltip.hidden = true;
+    sidebarTooltip.setAttribute('aria-hidden', 'true');
+    panel.append(sidebarTooltip);
+    let tooltipTrigger = null, tooltipExit;
+    const hideTooltip = () => {
+      clearTimeout(tooltipExit);
+      sidebarTooltip.hidden = true;
+      tooltipTrigger = null;
+    };
+    const deferTooltipHide = target => {
+      if (!target) return;
+      clearTimeout(tooltipExit);
+      tooltipExit = setTimeout(() => {
+        if (tooltipTrigger === target && !target.matches(':focus-visible, :hover') && !sidebarTooltip.matches(':hover')) hideTooltip();
+      }, 120);
+    };
+    sidebarTooltip.addEventListener('pointerenter', () => clearTimeout(tooltipExit));
+    sidebarTooltip.addEventListener('pointerleave', () => deferTooltipHide(tooltipTrigger));
+    const addSidebarTooltip = (owner, label, triggerSelector) => {
+      const eventTrigger = event => triggerSelector ? event.composedPath().find(node => node.matches?.(triggerSelector)) : owner;
+      const show = target => {
+        clearTimeout(tooltipExit);
+        tooltipTrigger = target;
+        sidebarTooltip.textContent = typeof label === 'function' ? label() : label;
+        sidebarTooltip.hidden = false;
+        const rect = target.getBoundingClientRect();
+        const width = sidebarTooltip.offsetWidth, height = sidebarTooltip.offsetHeight;
+        const right = rect.right + 8;
+        const fitsRight = right + width <= window.innerWidth - 8;
+        const left = fitsRight ? right : Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+        const top = fitsRight ? rect.top + (rect.height - height) / 2
+          : rect.bottom + height + 16 <= window.innerHeight ? rect.bottom + 8 : rect.top - height - 8;
+        sidebarTooltip.style.left = `${left}px`;
+        sidebarTooltip.style.top = `${Math.max(8, Math.min(top, window.innerHeight - height - 8))}px`;
+      };
+      owner.addEventListener(triggerSelector ? 'pointerover' : 'pointerenter', event => {
+        const target = eventTrigger(event);
+        if (target && event.pointerType !== 'touch') show(target);
+      });
+      owner.addEventListener(triggerSelector ? 'pointerout' : 'pointerleave', event => {
+        const target = eventTrigger(event);
+        if (tooltipTrigger === target) deferTooltipHide(target);
+      });
+      owner.addEventListener('focusin', event => {
+        const target = eventTrigger(event);
+        if (target?.matches(':focus-visible')) show(target);
+      });
+      owner.addEventListener('focusout', event => { if (tooltipTrigger === eventTrigger(event)) hideTooltip(); });
+    };
+    window.addEventListener('resize', hideTooltip);
+    const textSizeKey = 'etch-hub-sort-text-size';
+    const textSizes = [100, 125, 150, 175, 200];
+    let textSize = 100;
+    try {
+      const saved = Number(localStorage.getItem(textSizeKey));
+      if (textSizes.includes(saved)) textSize = saved;
+    } catch { /* Use the standard text size when storage is unavailable. */ }
+    const setTextSize = size => panel.style.setProperty('--etch-explorer-text-scale', size / 100);
+    setTextSize(textSize);
     const sidebar = element('div', 'etch-hub-sort-manager-sidebar');
     sidebar.id = 'etch-content-panel-menu';
     const menuStorageKey = `etch-hub-sort-menu:${config.userId || 0}`;
@@ -1289,7 +1349,7 @@
       menuToggle.textContent = menuCollapsed ? '›' : '‹';
       const label = menuCollapsed ? __('Expand content menu', 'etch-content-hub-sort') : __('Collapse content menu', 'etch-content-hub-sort');
       menuToggle.setAttribute('aria-label', label);
-      menuToggle.title = label;
+      hideTooltip();
       menuToggle.setAttribute('aria-expanded', String(!menuCollapsed));
       resize.hidden = menuCollapsed;
       resize.setAttribute('aria-valuenow', String(menuWidth));
@@ -1323,38 +1383,57 @@
     const header = element('div', 'etch-hub-sort-manager-header');
     const back = button(__('Close Content Explorer', 'etch-content-hub-sort'), closeContentPanel, 'etch-hub-sort-manager-back');
     back.setAttribute('aria-label', __('Close Content Explorer', 'etch-content-hub-sort'));
+    addSidebarTooltip(back, () => back.getAttribute('aria-label'));
+    addSidebarTooltip(menuToggle, () => menuToggle.getAttribute('aria-label'));
     const title = element('h1', '', __('Content Explorer', 'etch-content-hub-sort'));
     const versionPill = element('span', 'etch-hub-sort-version-pill', `v${config.version}`);
     versionPill.setAttribute('aria-label', sprintf(__('Installed version %s', 'etch-content-hub-sort'), config.version));
     header.append(back, title, menuToggle);
     const nav = element('nav', 'etch-hub-sort-manager-nav');
     nav.setAttribute('aria-label', __('Content views and settings', 'etch-content-hub-sort'));
-    const generalTab = button(__('General', 'etch-content-hub-sort'), () => showSection('general'), 'etch-hub-sort-manager-nav-button');
-    const hierarchyTab = button(__('Hierarchy', 'etch-content-hub-sort'), () => showSection('hierarchy'), 'etch-hub-sort-manager-nav-button');
-    const buttonsTab = button(__('Buttons', 'etch-content-hub-sort'), () => showSection('buttons'), 'etch-hub-sort-manager-nav-button');
-    const statusesTab = button(__('Status colors', 'etch-content-hub-sort'), () => showSection('statuses'), 'etch-hub-sort-manager-nav-button');
-    const transferTab = button(__('Settings transfer', 'etch-content-hub-sort'), () => showSection('transfer'), 'etch-hub-sort-manager-nav-button');
-    const listTab = button(__('List', 'etch-content-hub-sort'), () => showSection('list'), 'etch-hub-sort-manager-nav-button');
+    nav.addEventListener('scroll', hideTooltip);
+    const navIcon = name => {
+      const icon = element('span', 'etch-hub-sort-nav-icon');
+      icon.dataset.icon = name;
+      icon.setAttribute('aria-hidden', 'true');
+      return icon;
+    };
+    const navButton = (label, icon, action) => {
+      const tab = button('', action, 'etch-hub-sort-manager-nav-button');
+      addSidebarTooltip(tab, label);
+      tab.append(navIcon(icon), element('span', 'etch-hub-sort-nav-label', label));
+      return tab;
+    };
+    const disclosureItem = (label, icon) => {
+      const item = element('wa-accordion-item');
+      const heading = element('span', 'etch-hub-sort-disclosure-label');
+      heading.slot = 'label';
+      heading.append(navIcon(icon), element('span', 'etch-hub-sort-nav-label', label));
+      item.append(heading);
+      addSidebarTooltip(item, label, 'button[part~="button"]');
+      return item;
+    };
+    const generalTab = navButton(__('General', 'etch-content-hub-sort'), 'sliders-horizontal', () => showSection('general'));
+    const editorsTab = navButton(__('Editors', 'etch-content-hub-sort'), 'edit', () => showSection('editors'));
+    const hierarchyTab = navButton(__('Hierarchy', 'etch-content-hub-sort'), 'hierarchy', () => showSection('hierarchy'));
+    const buttonsTab = navButton(__('Buttons', 'etch-content-hub-sort'), 'toggle-left', () => showSection('buttons'));
+    const statusesTab = navButton(__('Status colors', 'etch-content-hub-sort'), 'palette', () => showSection('statuses'));
+    const transferTab = navButton(__('Settings transfer', 'etch-content-hub-sort'), 'arrow-left-right', () => showSection('transfer'));
+    const listTab = navButton(__('List', 'etch-content-hub-sort'), 'list', () => showSection('list'));
     const mapDisclosure = element('wa-accordion', 'etch-content-settings-disclosure etch-content-map-disclosure');
     mapDisclosure.setAttribute('appearance', 'plain');
     mapDisclosure.setAttribute('heading-level', 'none');
-    mapDisclosure.setAttribute('icon-placement', 'start');
-    const mapItem = element('wa-accordion-item');
-    mapItem.setAttribute('label', __('Map', 'etch-content-hub-sort'));
-    const siteMapTab = button(__('Site', 'etch-content-hub-sort'), () => showSection('map'), 'etch-hub-sort-manager-nav-button');
-    const pageMapTab = button(__('Current item', 'etch-content-hub-sort'), () => {
-      showSection('map', activePostId());
-    }, 'etch-hub-sort-manager-nav-button');
+    const mapItem = disclosureItem(__('Map', 'etch-content-hub-sort'), 'globe');
+    const siteMapTab = navButton(__('Site', 'etch-content-hub-sort'), 'chart-relationship', () => showSection('map'));
+    const pageMapTab = navButton(__('Current item', 'etch-content-hub-sort'), 'connections', () => showSection('map', activePostId()));
     mapItem.append(siteMapTab, pageMapTab);
     mapDisclosure.append(mapItem);
     nav.append(listTab, mapDisclosure);
     const settingsDisclosure = element('wa-accordion', 'etch-content-settings-disclosure');
     settingsDisclosure.setAttribute('appearance', 'plain');
     settingsDisclosure.setAttribute('heading-level', 'none');
-    settingsDisclosure.setAttribute('icon-placement', 'start');
-    const settingsItem = element('wa-accordion-item');
-    settingsItem.setAttribute('label', __('Settings', 'etch-content-hub-sort'));
-    settingsItem.append(generalTab, hierarchyTab, buttonsTab, statusesTab, transferTab);
+    const settingsItem = disclosureItem(__('Settings', 'etch-content-hub-sort'), 'gear');
+    settingsItem.append(generalTab, editorsTab, hierarchyTab, buttonsTab, statusesTab, transferTab);
     settingsDisclosure.append(settingsItem);
     if (config.canManage) nav.append(settingsDisclosure);
     const sidebarFooter = element('div', 'etch-hub-sort-manager-sidebar-footer');
@@ -1362,6 +1441,7 @@
     sidebar.append(header, nav, sidebarFooter, resize);
     const body = element('div', 'etch-hub-sort-manager-body');
     const content = element('div', 'etch-hub-sort-settings-panel');
+    const editorsContent = element('div', 'etch-hub-sort-settings-panel');
     const hierarchyContent = element('div', 'etch-hub-sort-hierarchy-settings-panel');
     const buttonContent = element('div', 'etch-hub-sort-button-settings-panel');
     const statusContent = element('div', 'etch-hub-sort-button-settings-panel etch-hub-sort-status-settings-panel');
@@ -1385,7 +1465,7 @@
     const listHost = element('div', 'etch-content-list-host');
     listContent.append(listHeading, listHost);
     const mapContent = element('div', 'etch-content-map-view');
-    body.append(listContent, mapContent, content, hierarchyContent, buttonContent, statusContent, transferContent);
+    body.append(listContent, mapContent, content, editorsContent, hierarchyContent, buttonContent, statusContent, transferContent);
     const mountList = () => {
       if (view) { view.state.requestId++; view.root.remove(); view = null; }
       const [kind, type] = typeSelect.value.split(':');
@@ -1395,6 +1475,7 @@
     panel.append(sidebar, body);
     document.body.appendChild(panel);
     const showSection = (section, id = 0) => {
+      hideTooltip();
       if (!['list', 'map'].includes(section) && !config.canManage) section = 'list';
       if (!['list', 'map'].includes(section)) settingsItem.expanded = true;
       window.etchHubCloseConnections?.();
@@ -1410,11 +1491,13 @@
       settingsManager.section = section;
       syncSidebarActiveState();
       content.hidden = section !== 'general';
+      editorsContent.hidden = section !== 'editors';
       hierarchyContent.hidden = section !== 'hierarchy';
       buttonContent.hidden = section !== 'buttons';
       statusContent.hidden = section !== 'statuses';
       transferContent.hidden = section !== 'transfer';
       generalTab.setAttribute('aria-current', section === 'general' ? 'page' : 'false');
+      editorsTab.setAttribute('aria-current', section === 'editors' ? 'page' : 'false');
       hierarchyTab.setAttribute('aria-current', section === 'hierarchy' ? 'page' : 'false');
       buttonsTab.setAttribute('aria-current', section === 'buttons' ? 'page' : 'false');
       statusesTab.setAttribute('aria-current', section === 'statuses' ? 'page' : 'false');
@@ -1424,7 +1507,11 @@
     settingsManager = { panel, back, menuToggle, launch: null, trigger: null, showSection };
     showSection('list');
     panel.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { event.preventDefault(); back.click(); }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (sidebarTooltip.hidden) back.click();
+        else hideTooltip();
+      }
       event.stopPropagation();
     });
     panel.addEventListener('keyup', event => event.stopPropagation());
@@ -1528,9 +1615,9 @@
       key: 'hide_native_content_hub', configKey: 'hideNativeContentHub',
     });
     const wordpressEditSetting = addSetting({
-      label: __('Show Edit in WordPress', 'etch-content-hub-sort'),
-      ariaLabel: __('Show Edit in WordPress buttons in List', 'etch-content-hub-sort'),
-      description: __('Open the WordPress editor and custom fields for items you can edit.', 'etch-content-hub-sort'),
+      label: __('Show WordPress shortcuts for terms', 'etch-content-hub-sort'),
+      ariaLabel: __('Show WordPress shortcuts for taxonomy terms in List', 'etch-content-hub-sort'),
+      description: __('Show WordPress editor links for taxonomy terms in List.', 'etch-content-hub-sort'),
       key: 'show_wordpress_edit', configKey: 'showWordPressEdit',
     });
     const placement = element('div', 'settings-toggle svelte-2pz811 etch-hub-sort-setting');
@@ -1763,10 +1850,119 @@
       section.appendChild(list);
       content.appendChild(section);
     };
+    const textSizeRow = element('div', 'etch-hub-sort-setting');
+    const textSizeLabel = element('label', 'settings-toggle-name', __('Text size', 'etch-content-hub-sort'));
+    const textSizeSelect = element('select', 'etch-hub-sort-placement-select');
+    textSizeSelect.id = 'etch-hub-sort-text-size';
+    textSizeLabel.htmlFor = textSizeSelect.id;
+    const percent = new Intl.NumberFormat(undefined, { style: 'percent' });
+    for (const size of textSizes) {
+      const option = element('option', '', percent.format(size / 100));
+      option.value = size;
+      textSizeSelect.append(option);
+    }
+    textSizeSelect.value = textSize;
+    textSizeSelect.addEventListener('change', () => {
+      textSize = Number(textSizeSelect.value);
+      setTextSize(textSize);
+      try { localStorage.setItem(textSizeKey, String(textSize)); } catch { /* Leave the current selection active. */ }
+    });
+    const textSizeHelp = element('p', 'settings-toggle-description', __('Adjust Content Explorer text size for this browser.', 'etch-content-hub-sort'));
+    textSizeHelp.id = 'etch-hub-sort-text-size-help';
+    textSizeSelect.setAttribute('aria-describedby', textSizeHelp.id);
+    arrangeSetting(textSizeRow, textSizeLabel, textSizeHelp, element('span'), textSizeSelect);
     enableSetting.row.remove();
     settingsGroup(__('Sidebar', 'etch-content-hub-sort'), nativeHubSetting.row);
     settingsGroup(__('Table', 'etch-content-hub-sort'), wordpressEditSetting.row, placement, defaultRow, termDefaultRow);
-    settingsGroup(__('Appearance', 'etch-content-hub-sort'), colorRow);
+    settingsGroup(__('Appearance', 'etch-content-hub-sort'), textSizeRow, colorRow);
+
+    const editorsIntro = element('div', 'etch-hub-sort-manager-intro');
+    editorsIntro.append(
+      element('h2', '', __('Editors', 'etch-content-hub-sort')),
+      element('p', '', __('Choose which editor shortcuts appear in List and Map for each post type. WordPress permissions and Etch support still apply.', 'etch-content-hub-sort'))
+    );
+    const editorsForm = element('form', 'etch-hub-sort-settings-group etch-hub-sort-editor-settings');
+    const editorRows = element('div', 'etch-hub-sort-settings-group-list');
+    const editorSelects = new Map();
+    const editorModes = new Map([
+      ['both', __('Etch and WordPress', 'etch-content-hub-sort')],
+      ['wordpress', __('WordPress only', 'etch-content-hub-sort')],
+      ['etch', __('Etch only', 'etch-content-hub-sort')],
+    ]);
+    const savedEditorModes = new Map();
+    const editorTypes = [...(config.editorTypes || [])].sort((a, b) => a.label.localeCompare(b.label));
+    for (const { name, label, supportsEtch, shared, mode: activeMode } of editorTypes) {
+      const row = element('div', 'etch-hub-sort-setting');
+      const status = element('span', 'etch-hub-sort-setting-status');
+      const fixed = shared || !supportsEtch;
+      const title = element(fixed ? 'span' : 'label', 'settings-toggle-name', label);
+      const slug = element('p', 'settings-toggle-description', name);
+      if (fixed) {
+        arrangeSetting(row, title, slug, status, element('span', '', editorModes.get(activeMode)));
+      } else {
+        const select = element('select', 'etch-hub-sort-placement-select etch-hub-sort-editor-select');
+        select.id = `etch-hub-editor-${name}`;
+        title.htmlFor = select.id;
+        for (const [mode, text] of editorModes) {
+          const option = element('option', '', text);
+          option.value = mode;
+          select.append(option);
+        }
+        select.value = activeMode;
+        savedEditorModes.set(name, activeMode);
+        editorSelects.set(name, select);
+        const currentChoice = element('span', 'etch-hub-sort-editor-current', editorModes.get(activeMode));
+        currentChoice.setAttribute('aria-hidden', 'true');
+        select.addEventListener('change', () => { currentChoice.textContent = editorModes.get(select.value); });
+        arrangeSetting(row, title, slug, status, select, currentChoice);
+      }
+      editorRows.append(row);
+    }
+    const editorControls = element('div', 'etch-hub-sort-setting');
+    const editorStatus = element('span', 'etch-hub-sort-setting-status');
+    editorStatus.setAttribute('role', 'status');
+    const saveEditors = element('button', 'etch-hub-sort-button', __('Save editor settings', 'etch-content-hub-sort'));
+    saveEditors.type = 'submit';
+    saveEditors.disabled = true;
+    editorsForm.addEventListener('change', () => {
+      saveEditors.disabled = ![...editorSelects].some(([name, select]) => select.value !== savedEditorModes.get(name));
+      editorStatus.textContent = '';
+    });
+    editorsForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (saveEditors.disabled) return;
+      const access = { ...config.editorAccess };
+      for (const [name, select] of editorSelects) {
+        if (select.value !== savedEditorModes.get(name)) access[name] = select.value;
+        select.disabled = true;
+      }
+      saveEditors.disabled = true;
+      editorStatus.textContent = __('Saving…', 'etch-content-hub-sort');
+      try {
+        const data = await saveSettings({ editor_access: access });
+        config.editorAccess = data.editor_access;
+        for (const [name, select] of editorSelects) savedEditorModes.set(name, select.value);
+        editorStatus.textContent = __('Saved', 'etch-content-hub-sort');
+        if (view?.kind === 'post') {
+          const current = view;
+          current.results.replaceChildren();
+          const notice = current.state.lastNotice;
+          if (notice) current.notice.replaceChildren();
+          await load(current);
+          if (view === current && notice && current.state.lastNotice === notice) {
+            showSaveNotice(current, notice.message, notice.id);
+          }
+        }
+      } catch (error) {
+        editorStatus.textContent = error.message || __('Could not save editor settings.', 'etch-content-hub-sort');
+        saveEditors.disabled = false;
+      } finally {
+        for (const select of editorSelects.values()) select.disabled = false;
+      }
+    });
+    editorControls.append(saveEditors, editorStatus);
+    editorsForm.append(editorRows, editorControls);
+    editorsContent.append(editorsIntro, editorsForm);
 
     const hierarchyIntro = element('div', 'etch-hub-sort-manager-intro');
     hierarchyIntro.append(
@@ -1934,7 +2130,7 @@
       } finally { exportButton.disabled = false; }
     });
     exportCard.append(element('h3', '', __('Export', 'etch-content-hub-sort')),
-      element('p', '', __('Download all saved settings, including general preferences, button appearance, hierarchy styling, and status colors.', 'etch-content-hub-sort')), exportButton, exportNotice);
+      element('p', '', __('Download all saved settings, including editor preferences, button appearance, hierarchy styling, and status colors.', 'etch-content-hub-sort')), exportButton, exportNotice);
     const importCard = element('section', 'etch-hub-sort-transfer-card');
     const fileLabel = element('label', '', __('Settings file', 'etch-content-hub-sort'));
     const fileInput = element('input', 'etch-hub-sort-edit-input');
@@ -1968,7 +2164,7 @@
         if (!response.ok) throw new Error(data.message || __('Could not import settings.', 'etch-content-hub-sort'));
         importNotice.textContent = __('Settings imported. Save any unfinished page edits, then reload the builder to use the new settings.', 'etch-content-hub-sort');
         reloadButton.hidden = false;
-        for (const tab of [generalTab, hierarchyTab, buttonsTab, statusesTab]) tab.disabled = true;
+        for (const tab of [generalTab, editorsTab, hierarchyTab, buttonsTab, statusesTab]) tab.disabled = true;
       } catch (error) {
         importNotice.textContent = error.message || __('Could not import settings.', 'etch-content-hub-sort');
         fileInput.disabled = false;

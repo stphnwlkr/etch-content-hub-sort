@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   color: var(--e-text-color, #ddd);
-  font-size: var(--e-font-size-m, 14px);
+  font-size: .875rem;
 }
 .content-hub__content .etch-hub-sort-native { flex: 0 0 auto; }
 .etch-hub-sort-results { min-height: 0; overflow: auto; }
@@ -202,11 +202,11 @@
 .etch-hub-sort-dialog-footer { flex: 0 0 auto; display: flex; flex-direction: column; gap: 0.6rem; padding: 0.85rem 1.5rem 1rem; border-top: 1px solid #3b3b40; background: #27272b; }
 .etch-hub-sort-edit-form h2, .etch-hub-sort-edit-form p { margin: 0; }
 .etch-hub-sort-dialog-header { flex: 0 0 auto; padding: 1rem 1.5rem 0.85rem; border-bottom: 1px solid #3b3b40; background: #27272b; }
-.etch-hub-sort-dialog-header h2 { font-size: 1.25rem; line-height: 1.3; }
+.etch-hub-sort-dialog-header h2 { font-size: 1.3em; line-height: 1.3; }
 .etch-hub-sort-dialog-header p { margin-top: 0.25rem; color: var(--e-foreground-color-muted, #aaa); line-height: 1.4; }
 .etch-hub-sort-edit-field { display: flex; flex-direction: column; gap: 0.4rem; }
 .etch-hub-sort-edit-form label, .etch-hub-sort-parent-label-heading { font-weight: 600; }
-.etch-hub-sort-edit-hint { color: var(--e-foreground-color-muted, #aaa); font-size: 0.85rem; font-weight: 400 !important; }
+.etch-hub-sort-edit-hint { color: var(--e-foreground-color-muted, #aaa); font-size: .875em; font-weight: 400 !important; }
 .etch-hub-sort-parent-field > label { margin-top: 0.15rem; font-size: 0.9em; color: var(--e-foreground-color-muted, #aaa); font-weight: 400; }
 .etch-hub-sort-edit-input {
   width: 100%;
@@ -281,7 +281,8 @@
 }
 .etch-hub-sort-expand:hover { background: var(--e-neutral-light-trans-10, #ffffff1a); }
 .etch-hub-sort-child-more td { padding-left: calc(0.65rem + var(--etch-hub-depth) * 1.25rem); }
-.etch-hub-sort-sr-only {
+.etch-hub-sort-sr-only,
+.is-menu-collapsed .etch-hub-sort-nav-label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -436,33 +437,73 @@
   --hub-line: var(--e-border-color, #36363a);
   --hub-text: var(--e-foreground-color, #e1e1e5);
   --hub-muted: color-mix(in srgb, var(--hub-text) 60%, transparent);
+  --hub-panel-inset: 12px;
+  --hub-panel-radius: 12px;
+  --hub-panel-shadow: 0 16px 40px #0008;
   position: fixed;
   inset: 0 0 var(--etch-action-bar-height, 48px) var(--e-settings-bar-width, 46.5px);
   z-index: 60;
   display: grid;
-  grid-template-columns: var(--etch-content-menu-width, 200px) minmax(0, 1fr);
+  grid-template-columns: max(var(--etch-content-menu-width, 200px), 11em) minmax(0, 1fr);
   color: var(--hub-text);
   background: var(--hub-surface);
-  font: 500 var(--e-font-size-m, 13px)/1.4 var(--e-font-interface, Inter, system-ui, sans-serif);
+  font: 500 calc(.875rem * var(--etch-explorer-text-scale, 1))/1.4 var(--e-font-interface, Inter, system-ui, sans-serif);
 }
 /* Icons use Etch's native SVG markup and styling, including site overrides. */
 .etch-hub-sort-bar-trigger[hidden] { display: none !important; }
 .etch-hub-sort-manager-sidebar { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--hub-line); background: var(--hub-surface); }
 .etch-hub-sort-manager-header { display: flex; flex-shrink: 0; align-items: center; gap: 10px; min-height: 57px; padding: 0 12px; border-bottom: 1px solid var(--hub-line); }
-.etch-hub-sort-manager-header h1 { margin: 0; font-size: var(--e-hub-title-font-size, 16px); font-weight: 400; }
+.etch-hub-sort-manager-header h1 { margin: 0; font-size: 1.14em; font-weight: 400; }
 .etch-hub-sort-manager-sidebar-footer { display: flex; flex-shrink: 0; justify-content: center; margin-top: auto; padding: 20px 16px; }
-.etch-hub-sort-version-pill { display: inline-flex; align-items: center; padding: 2px 7px; border: 1px solid #55555f; border-radius: 999px; background: #35353b; color: #e2e2ea; font-size: 11px; font-weight: 500; line-height: 1.4; white-space: nowrap; }
+.etch-hub-sort-version-pill { display: inline-flex; align-items: center; padding: 2px 7px; border: 1px solid #55555f; border-radius: 999px; background: #35353b; color: #e2e2ea; font-size: .875em; font-weight: 500; line-height: 1.4; white-space: nowrap; }
 .etch-hub-sort-manager-back { flex: 0 0 28px; width: 28px; height: 28px; padding: 0; border: 1px solid var(--hub-line); border-radius: var(--e-border-radius, 6px); background: transparent; color: inherit; cursor: pointer; font-size: 0; }
 .etch-hub-sort-manager-back::before { content: ''; display: block; width: 16px; height: 16px; margin: auto; background: currentColor; mask: url('ui-left.svg') center/contain no-repeat; }
 .etch-hub-sort-manager-nav { display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow-y: auto; padding: 16px; }
 .etch-hub-sort-manager-nav-button { width: 100%; padding: 9px 12px; border: 0; border-radius: var(--e-border-radius, 6px); background: transparent; color: var(--hub-muted); font: inherit; text-align: left; cursor: pointer; }
+.etch-hub-sort-manager-nav-button,
+.etch-hub-sort-disclosure-label { display: flex; align-items: center; gap: .55em; overflow-wrap: anywhere; }
+.etch-hub-sort-sidebar-tooltip {
+  position: fixed;
+  z-index: 100;
+  box-sizing: border-box;
+  max-inline-size: calc(100vw - 16px);
+  padding: .35em .6em;
+  border: 1px solid var(--hub-line);
+  border-radius: 6px;
+  background: var(--hub-raised);
+  color: var(--hub-text);
+  box-shadow: 0 4px 14px #0006;
+  overflow-wrap: anywhere;
+}
+.etch-hub-sort-nav-icon { flex: none; inline-size: 1.15em; block-size: 1.15em; background: currentColor; mask: var(--hub-nav-icon) center / contain no-repeat; }
+.etch-hub-sort-nav-icon[data-icon="list"] { --hub-nav-icon: url('ui-list.svg'); }
+.etch-hub-sort-nav-icon[data-icon="connections"] { --hub-nav-icon: url('ui-connections.svg'); }
+.etch-hub-sort-nav-icon[data-icon="chart-relationship"] { --hub-nav-icon: url('chart-relationship-stroke-rounded.svg'); }
+.etch-hub-sort-nav-icon[data-icon="globe"] { --hub-nav-icon: url('ui-globe.svg'); }
+.etch-hub-sort-nav-icon[data-icon="gear"] { --hub-nav-icon: url('ui-gear.svg'); }
+.etch-hub-sort-nav-icon[data-icon="sliders-horizontal"] { --hub-nav-icon: url('ui-sliders-horizontal.svg'); }
+.etch-hub-sort-nav-icon[data-icon="edit"] { --hub-nav-icon: url('ui-edit.svg'); }
+.etch-hub-sort-nav-icon[data-icon="hierarchy"] { --hub-nav-icon: url('ui-hierarchy.svg'); }
+.etch-hub-sort-nav-icon[data-icon="toggle-left"] { --hub-nav-icon: url('ui-toggle-left.svg'); }
+.etch-hub-sort-nav-icon[data-icon="palette"] { --hub-nav-icon: url('ui-palette.svg'); }
+.etch-hub-sort-nav-icon[data-icon="arrow-left-right"] { --hub-nav-icon: url('ui-arrow-left-right.svg'); }
 .etch-hub-sort-manager-nav-button:hover, .etch-hub-sort-manager-nav-button[aria-current="page"] { background: var(--hub-raised); color: var(--hub-text); }
 .etch-hub-sort-manager-back:focus-visible, .etch-hub-sort-manager-nav-button:focus-visible, .etch-hub-sort-button-save:focus-visible { outline: 2px solid #8fc9ff; outline-offset: 2px; }
 .etch-hub-sort-manager-body { min-width: 0; min-height: 0; overflow: hidden; background: var(--hub-view); }
-.etch-hub-sort-manager-body > div { width: 100%; height: 100%; box-sizing: border-box; overflow-y: auto; padding: 24px 32px; scrollbar-gutter: stable; }
-.etch-hub-sort-manager .etch-hub-sort-settings-panel { display: flex; flex-direction: column; align-items: stretch; max-width: 760px; margin: 12px auto 0; background: transparent; }
+.etch-hub-sort-manager-body > div { width: 100%; height: 100%; box-sizing: border-box; overflow-y: auto; padding: 0; scrollbar-gutter: stable; }
+.etch-hub-sort-manager-body > :is(.etch-hub-sort-settings-panel, .etch-hub-sort-hierarchy-settings-panel, .etch-hub-sort-button-settings-panel) {
+  inline-size: min(760px, calc(100% - 2 * var(--hub-panel-inset)));
+  block-size: calc(100% - 2 * var(--hub-panel-inset));
+  margin: var(--hub-panel-inset);
+  padding: clamp(.75rem, 3vw, 2rem);
+  border: 1px solid var(--hub-line);
+  border-radius: var(--hub-panel-radius);
+  background: color-mix(in srgb, var(--hub-view), var(--hub-raised) 32%);
+  box-shadow: var(--hub-panel-shadow);
+  overflow-wrap: anywhere;
+}
 .etch-hub-sort-settings-group { margin-bottom: 22px; }
-.etch-hub-sort-settings-group-title { margin: 0 0 7px 2px; color: var(--hub-muted); font-size: 11px; font-weight: 600; }
+.etch-hub-sort-settings-group-title { margin: 0 0 7px 2px; color: var(--hub-muted); font-size: .875em; font-weight: 600; }
 .etch-hub-sort-settings-group-list { overflow: hidden; border: 1px solid var(--hub-line); border-radius: 8px; background: var(--hub-surface); }
 .etch-hub-sort-manager .etch-hub-sort-setting {
   display: grid;
@@ -480,11 +521,13 @@
 .etch-hub-sort-settings-group-list > .etch-hub-sort-button-card + .etch-hub-sort-button-card { border-top: 1px solid var(--hub-line); }
 .etch-hub-sort-setting-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .etch-hub-sort-setting-copy .settings-toggle-name { color: var(--hub-text); font-weight: 600; line-height: 1.3; }
-.etch-hub-sort-setting-copy .settings-toggle-description { max-width: none; margin: 0; color: var(--hub-muted); font-size: 12px; font-weight: 400; line-height: 1.45; opacity: 1; }
+.etch-hub-sort-setting-copy .settings-toggle-description { max-width: none; margin: 0; color: var(--hub-muted); font-size: .9em; font-weight: 400; line-height: 1.45; opacity: 1; }
 .etch-hub-sort-setting-copy .etch-hub-sort-setting-status:empty { display: none; }
-.etch-hub-sort-setting-copy .etch-hub-sort-setting-status { min-height: 0; font-size: 11px; }
+.etch-hub-sort-setting-copy .etch-hub-sort-setting-status { min-height: 0; font-size: .875em; }
 .etch-hub-sort-setting-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
 .etch-hub-sort-setting-actions > .etch-hub-sort-placement-select { width: 185px; max-width: none; }
+.etch-hub-sort-setting-actions > .etch-hub-sort-editor-select { inline-size: 15em; max-inline-size: 100%; }
+.etch-hub-sort-editor-current { display: none; color: var(--hub-muted); }
 .etch-hub-sort-default-setting .etch-hub-sort-default-controls { margin: 0; flex-wrap: nowrap; }
 .etch-hub-sort-default-setting .etch-hub-sort-default-controls .etch-hub-sort-placement-select { width: 145px; flex: 0 1 145px; }
 .etch-hub-sort-manager .etch-hub-sort-color-setting { grid-template-columns: 1fr; }
@@ -525,27 +568,25 @@
 }
 .etch-hub-sort-enable-switch[data-state="checked"] .etch-hub-sort-enable-switch-thumb { transform: translateX(12px); }
 .etch-hub-sort-enable-switch:disabled { opacity: 0.55; cursor: wait; }
-.etch-hub-sort-button-settings-panel { max-width: 760px; margin: 12px auto 0; }
-.etch-hub-sort-hierarchy-settings-panel { max-width: 760px; margin: 12px auto 0; }
 .etch-hub-sort-hierarchy-custom-toggle { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--hub-line); border-radius: 8px; background: var(--hub-surface); cursor: pointer; }
 .etch-hub-sort-hierarchy-custom-toggle input { margin: 0; accent-color: var(--e-primary, #54ded1); }
 .etch-hub-sort-hierarchy-card { margin: 0; padding: 14px 18px; border: 0; border-radius: 0; background: transparent; }
-.etch-hub-sort-hierarchy-card h3 { margin: 0 0 12px; font-size: var(--e-font-size-l, 13px); font-weight: 600; }
-.etch-hub-sort-hierarchy-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.etch-hub-sort-hierarchy-card h3 { margin: 0 0 12px; font-size: 1em; font-weight: 600; }
+.etch-hub-sort-hierarchy-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8em), 1fr)); gap: 1rem; }
 .etch-hub-sort-hierarchy-field { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; min-width: 0; cursor: pointer; }
 .etch-hub-sort-hierarchy-field-label { font-weight: 500; }
-.etch-hub-sort-hierarchy-color-control { display: flex; align-items: center; gap: 9px; min-height: 2rem; }
-.etch-hub-sort-hierarchy-color-value { font-family: monospace; font-size: 0.8rem; color: var(--e-text-color-secondary, #a3a3a3); }
-.etch-hub-sort-hierarchy-field-error { min-height: 1.2em; color: #f3a9a9; font-size: 0.72rem; line-height: 1.2; }
+.etch-hub-sort-hierarchy-color-control { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; min-height: 2rem; }
+.etch-hub-sort-hierarchy-color-value { font-family: monospace; font-size: .875em; color: var(--e-text-color-secondary, #a3a3a3); }
+.etch-hub-sort-hierarchy-field-error { min-height: 1.2em; color: #f3a9a9; font-size: .875em; line-height: 1.2; }
 .etch-hub-sort-hierarchy-field-error:empty { visibility: hidden; }
 .etch-hub-sort-hierarchy-field input[aria-invalid="true"] { border-color: #f3a9a9; outline: 1px solid #f3a9a9; outline-offset: 2px; }
 .etch-hub-sort-hierarchy-preview { display: flex; align-items: center; gap: 12px; min-height: 40px; margin-top: 16px; padding: 6px 12px; border-radius: 4px; box-sizing: border-box; }
 .etch-hub-sort-hierarchy-preview-caret { display: inline-flex; align-items: center; justify-content: center; width: 20px; font-size: 20px; }
-.etch-hub-sort-hierarchy-width { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 12px 0; }
+.etch-hub-sort-hierarchy-width { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin: 12px 0; }
 .etch-hub-sort-hierarchy-save { margin-top: 12px; }
 .etch-hub-sort-manager-intro { margin-bottom: 18px; }
-.etch-hub-sort-manager-intro h2 { margin: 0 0 8px; font-size: 18px; font-weight: 500; }
-.etch-hub-sort-manager-intro p { margin: 0; color: var(--hub-muted); font-size: 12px; font-weight: 400; line-height: 1.5; }
+.etch-hub-sort-manager-intro h2 { margin: 0 0 8px; font-size: 1.3em; font-weight: 500; }
+.etch-hub-sort-manager-intro p { max-inline-size: 70ch; margin: 0; color: var(--hub-muted); font-size: .9em; font-weight: 400; line-height: 1.5; }
 .etch-hub-sort-button-card { margin: 0; border: 0; border-radius: 0; background: transparent; }
 .etch-hub-sort-button-card-summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto) 12px; align-items: center; gap: 14px; min-height: 48px; padding: 10px 18px; list-style: none; cursor: pointer; }
 .etch-hub-sort-button-card-summary::-webkit-details-marker { display: none; }
@@ -554,30 +595,29 @@
 .etch-hub-sort-button-card-summary::after { content: ''; width: 7px; height: 7px; border-right: 1.5px solid var(--hub-muted); border-bottom: 1.5px solid var(--hub-muted); transform: rotate(-45deg); }
 .etch-hub-sort-button-card[open] > .etch-hub-sort-button-card-summary::after { transform: rotate(45deg); }
 .etch-hub-sort-button-card-summary-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.etch-hub-sort-button-card-title { overflow: hidden; color: var(--hub-text); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.etch-hub-sort-button-card-choice { overflow: hidden; color: var(--hub-muted); font-size: 11px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+.etch-hub-sort-button-card-title { color: var(--hub-text); font-weight: 600; }
+.etch-hub-sort-button-card-choice { color: var(--hub-muted); font-size: .875em; font-weight: 400; }
 .etch-hub-sort-button-card-editor { padding: 16px 18px 18px; border-top: 1px solid var(--hub-line); }
-.etch-hub-sort-button-card-controls { display: grid; grid-template-columns: minmax(145px, 200px) auto; align-items: end; justify-content: start; gap: 18px; }
-.etch-hub-sort-button-display-field, .etch-hub-sort-button-color-field { display: flex; flex-direction: column; align-items: start; gap: 0.35rem; font-size: 0.85rem; }
-.etch-hub-sort-button-custom-field { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 2rem; white-space: nowrap; cursor: pointer; }
+.etch-hub-sort-button-card-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 1em; }
+.etch-hub-sort-button-display-field, .etch-hub-sort-button-color-field { display: flex; flex-direction: column; align-items: start; gap: 0.35rem; font-size: .875em; }
+.etch-hub-sort-button-custom-field { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 2rem; cursor: pointer; }
 .etch-hub-sort-button-custom-field input { margin: 0; accent-color: var(--e-primary, #54ded1); }
 .etch-hub-sort-button-display-field .etch-hub-sort-placement-select { width: 145px; max-width: none; min-height: 2rem; }
 .etch-hub-sort-button-card-colors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-width: 320px; margin-top: 16px; }
 .etch-hub-sort-button-card-colors[hidden] { display: none !important; }
 .etch-hub-sort-button-color-field .etch-hub-sort-color-input { width: 3rem; height: 2rem; }
-.etch-hub-sort-button-card-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-width: 0; margin-top: 16px; }
+.etch-hub-sort-button-card-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .75rem; min-width: 0; margin-top: 16px; }
 .etch-hub-sort-button-preview { min-width: 2rem; max-width: 13rem; overflow: hidden; pointer-events: none; cursor: default; }
 .etch-hub-sort-button-preview > .etch-hub-sort-native-icon { order: -1; }
 .etch-hub-sort-button-preview-label { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .etch-hub-sort-button-preview[data-display="icon"] .etch-hub-sort-button-preview-label { display: none; }
 .etch-hub-sort-button-save { flex: 0 0 auto; min-height: 2rem; }
-.etch-hub-sort-button-card .etch-hub-sort-setting-status { margin-right: auto; font-size: var(--e-font-size-s, 11px); }
+.etch-hub-sort-button-card .etch-hub-sort-setting-status { margin-right: auto; font-size: .875em; }
 .etch-hub-sort-button-card .etch-hub-sort-setting-status:empty { display: none; }
 @media (max-width: 1100px) {
   .etch-hub-sort-button-card-controls { display: flex; flex-wrap: wrap; gap: 8px; }
 }
 @media (max-width: 700px) {
-  .etch-hub-sort-hierarchy-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .etch-hub-sort-manager { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
   .etch-hub-sort-manager-sidebar { border-right: 0; border-bottom: 1px solid var(--hub-line); }
   .etch-hub-sort-manager-nav { flex-direction: row; padding: 0.5rem; }
@@ -589,19 +629,19 @@
 
 /* The plugin occupies Etch's content area as a sibling of the native views. */
 .etch-content-panel-open > :not(.settings-bar):not(.etch-hub-sort-manager) { display: none !important; }
-.etch-content-panel-open > .etch-hub-sort-manager { position: relative; inset: auto; z-index: auto; flex: 1; width: 0; min-width: 0; height: 100%; grid-template-columns: var(--etch-content-menu-width, 200px) minmax(0, 1fr); }
+.etch-content-panel-open > .etch-hub-sort-manager { position: relative; inset: auto; z-index: auto; flex: 1; width: 0; min-width: 0; height: 100%; grid-template-columns: max(var(--etch-content-menu-width, 200px), 11em) minmax(0, 1fr); }
 .etch-hub-sort-manager [hidden] { display: none !important; }
 .etch-hub-sort-manager .etch-content-list-view { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
 .etch-content-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 22px; border-bottom: 1px solid var(--hub-line); }
-.etch-content-list-heading h2 { margin: 0; font-size: 18px; }
+.etch-content-list-heading h2 { margin: 0; font-size: 1.3em; }
 .etch-content-type-label { display: flex; align-items: center; gap: 10px; }
 .etch-content-list-host { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 18px 22px; }
-.etch-content-list-host .etch-hub-sort { flex: 1; min-height: 0; display: flex; flex-direction: column; font-size: 13px; }
+.etch-content-list-host .etch-hub-sort { flex: 1; min-height: 0; display: flex; flex-direction: column; font-size: inherit; }
 .etch-content-list-host .etch-hub-sort-bar { flex-wrap: wrap; justify-content: space-between; }
 .etch-content-list-host .etch-hub-sort-controls { flex-wrap: wrap; }
 .etch-content-list-host .etch-hub-sort-search { min-width: 180px; width: 240px; }
 .etch-hub-sort-manager .etch-content-map-view { padding: 0; overflow: hidden; }
-.etch-content-settings-label { font-size: 11px; font-weight: 600; color: var(--hub-muted); margin: 24px 12px 8px; text-transform: uppercase; letter-spacing: .06em; }
+.etch-content-settings-label { font-size: .875em; font-weight: 600; color: var(--hub-muted); margin: 24px 12px 8px; text-transform: uppercase; letter-spacing: .06em; }
 @media (max-width: 760px) { .etch-content-panel-open > .etch-hub-sort-manager { grid-template-columns: 1fr; } .etch-content-list-heading { flex-wrap: wrap; } .etch-content-list-host { padding: 12px; } }
 body:has(.etch-content-panel-open) .element-menu-wrapper { display: none !important; }
 .etch-hub-connections-button {width:36px;min-width:36px;font-size:0;padding:7px;}
@@ -656,7 +696,7 @@ body:has(.etch-content-panel-open) .element-menu-wrapper { display: none !import
 .etch-content-settings-disclosure {
   display: block;
   margin-block-start: 20px;
-  font-size: 11px;
+  font-size: .875em;
   --wa-space-m: 8px;
   --wa-transition-normal: 180ms;
   --wa-transition-easing: ease;
@@ -677,7 +717,7 @@ body:has(.etch-content-panel-open) .element-menu-wrapper { display: none !import
 .etch-content-settings-disclosure wa-accordion-item::part(button):hover { background: var(--hub-raised); color: var(--hub-text); }
 .etch-content-settings-disclosure wa-accordion-item::part(content) { padding: 4px 0 0; }
 .etch-content-settings-disclosure wa-accordion-item:not(:defined) > .etch-hub-sort-manager-nav-button { display: none; }
-.etch-content-settings-disclosure .etch-hub-sort-manager-nav-button { display: block; font-size: var(--e-font-size-m, 14px); }
+.etch-content-settings-disclosure .etch-hub-sort-manager-nav-button { padding-inline-start: calc(12px + .75em); font-size: calc(.875rem * var(--etch-explorer-text-scale, 1)); }
 @media (prefers-reduced-motion: reduce) {
   .etch-content-settings-disclosure { --wa-transition-normal: 0ms; }
 }
@@ -686,6 +726,13 @@ body:has(.etch-content-panel-open) .element-menu-wrapper { display: none !import
   .etch-hub-sort-settings-group-list > .etch-hub-sort-setting { grid-template-columns: minmax(0, 1fr); }
   .etch-hub-sort-setting-actions { justify-content: flex-start; flex-wrap: wrap; }
   .etch-hub-sort-setting-actions > .etch-hub-sort-placement-select { max-width: 100%; }
+}
+@container (width < 25em) {
+  .etch-hub-sort-editor-settings .etch-hub-sort-setting { grid-template-columns: minmax(0, 1fr); }
+  .etch-hub-sort-editor-settings .etch-hub-sort-setting-actions { justify-content: flex-start; flex-wrap: wrap; }
+}
+@container (width < 15em) {
+  .etch-hub-sort-editor-current { display: block; flex-basis: 100%; }
 }
 
 .etch-hub-sort-manager-sidebar { position: relative; min-width: 0; }
@@ -700,7 +747,7 @@ body:has(.etch-content-panel-open) .element-menu-wrapper { display: none !import
   border-radius: var(--e-border-radius, 6px);
   background: transparent;
   color: var(--hub-text);
-  font: 22px/1 system-ui, sans-serif;
+  font: 1.25em/1 system-ui, sans-serif;
   cursor: pointer;
 }
 .etch-content-menu-toggle:hover { background: var(--hub-raised); }
@@ -719,23 +766,54 @@ body:has(.etch-content-panel-open) .element-menu-wrapper { display: none !import
 .is-menu-resizing .etch-content-menu-resize { background: #8fc9ff66; outline: none; }
 .etch-hub-sort-manager.is-menu-resizing { user-select: none; cursor: col-resize; }
 .etch-hub-sort-manager.is-menu-collapsed,
-.etch-content-panel-open > .etch-hub-sort-manager.is-menu-collapsed { grid-template-columns: 44px minmax(0, 1fr); }
-.is-menu-collapsed .etch-hub-sort-manager-nav,
+.etch-content-panel-open > .etch-hub-sort-manager.is-menu-collapsed { grid-template-columns: 56px minmax(0, 1fr); }
 .is-menu-collapsed .etch-hub-sort-manager-sidebar-footer,
 .is-menu-collapsed .etch-hub-sort-manager-header > h1,
 .is-menu-collapsed .etch-hub-sort-manager-back { display: none; }
 .is-menu-collapsed .etch-hub-sort-manager-header { padding-inline: 8px; }
+.is-menu-collapsed .etch-hub-sort-manager-nav { padding: 8px 6px; scrollbar-width: none; }
+.is-menu-collapsed .etch-hub-sort-manager-nav-button,
+.is-menu-collapsed .etch-content-settings-disclosure wa-accordion-item::part(button) {
+  box-sizing: border-box;
+  justify-content: center;
+  min-block-size: 40px;
+  padding: 6px;
+}
+.is-menu-collapsed .etch-hub-sort-nav-icon { inline-size: min(1.15em, 22px); block-size: min(1.15em, 22px); }
+.is-menu-collapsed .etch-content-settings-disclosure { margin-block-start: 4px; }
+.is-menu-collapsed .etch-content-settings-disclosure wa-accordion-item::part(button) { position: relative; }
+.is-menu-collapsed .etch-content-settings-disclosure wa-accordion-item::part(icon) {
+  position: absolute;
+  inset-inline-end: 1px;
+  font-size: .5rem;
+}
+.is-menu-collapsed .etch-content-settings-disclosure wa-accordion-item::part(content) {
+  padding: 0;
+  border-inline-start: 1px solid var(--hub-line);
+}
 @media (max-width: 760px) {
   .etch-hub-sort-manager,
-  .etch-content-panel-open > .etch-hub-sort-manager { grid-template-columns: min(var(--etch-content-menu-width, 200px), 45vw) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
-  .etch-hub-sort-manager-sidebar { border-right: 1px solid var(--hub-line); border-bottom: 0; }
-  .etch-hub-sort-manager-nav { flex-direction: column; }
+  .etch-content-panel-open > .etch-hub-sort-manager,
+  .etch-hub-sort-manager.is-menu-collapsed,
+  .etch-content-panel-open > .etch-hub-sort-manager.is-menu-collapsed { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .etch-hub-sort-manager.has-delta-map { grid-template-rows: minmax(0, 1fr); }
+  .etch-hub-sort-manager-sidebar { border-right: 0; border-bottom: 1px solid var(--hub-line); }
+  .etch-hub-sort-manager-nav { flex-direction: column; max-block-size: 24vh; }
+  .etch-hub-sort-manager-sidebar-footer, .etch-content-menu-resize { display: none; }
+  .is-menu-collapsed .etch-hub-sort-manager-header > h1, .is-menu-collapsed .etch-hub-sort-manager-back { display: block; }
   .etch-hub-sort-manager-nav-button { width: 100%; }
+  .is-menu-collapsed .etch-hub-sort-manager-nav { flex-flow: row wrap; align-items: flex-start; }
+  .is-menu-collapsed .etch-hub-sort-manager-nav-button,
+  .is-menu-collapsed .etch-content-settings-disclosure wa-accordion-item::part(button) { inline-size: 44px; }
+  .is-menu-collapsed .etch-content-settings-disclosure { margin: 0; }
+  .is-menu-collapsed .etch-content-settings-disclosure:has(wa-accordion-item[expanded]) { flex-basis: 100%; }
+  .is-menu-collapsed .etch-content-settings-disclosure wa-accordion-item::part(content) { display: flex; flex-wrap: wrap; }
+  .etch-content-type-label { flex-wrap: wrap; }
+  .etch-content-list-host .etch-hub-sort-search { min-inline-size: 0; max-inline-size: 100%; }
 }
 
-.etch-content-map-disclosure { margin-block-start: 0; font-size: var(--e-font-size-m, 13px); }
+.etch-content-map-disclosure { margin-block-start: 0; font-size: 1em; }
 .etch-content-map-disclosure wa-accordion-item::part(button) { text-transform: none; letter-spacing: normal; font-weight: 500; }
-.etch-content-map-disclosure .etch-hub-sort-manager-nav-button { padding-inline-start: 28px; }
 
 .settings-bar .etch-native-hub-hidden { display: none !important; }
 

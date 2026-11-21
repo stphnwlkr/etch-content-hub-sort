@@ -4,7 +4,7 @@ $original_user = get_current_user_id();
 $keys = array(
 	'hide_native_content_hub', 'panel_default_view', 'enabled', 'show_sidebar_icon', 'show_wordpress_edit', 'default_view', 'actions_layout', 'actions_first',
 	'default_column', 'default_order', 'term_default_column', 'term_default_order', 'active_bg', 'active_text',
-	'button_styles', 'status_styles', 'hierarchy_style',
+	'button_styles', 'status_styles', 'hierarchy_style', 'editor_access',
 );
 $snapshot = array();
 foreach ( $keys as $key ) {
@@ -26,12 +26,13 @@ try {
 	$export = $request( 'GET', '/etch-hub-sort/v1/settings/transfer' );
 	$document = $export->get_data();
 	$check( 200 === $export->get_status() && 1 === $document['format_version'] && 'etch-content-hub-sort' === $document['plugin'], 'export uses a versioned plugin format' );
-	$check( 16 === count( $document['settings'] ) && count( etch_hub_sort_button_defaults() ) === count( $document['settings']['button_styles'] ) && 6 === count( $document['settings']['status_styles'] ), 'export contains general, sorting, button, hierarchy, and status settings' );
+	$check( 17 === count( $document['settings'] ) && count( etch_hub_sort_button_defaults() ) === count( $document['settings']['button_styles'] ) && 6 === count( $document['settings']['status_styles'] ), 'export contains general, sorting, button, hierarchy, status, and editor settings' );
 	$check( ! str_contains( wp_json_encode( $document ), 'nonce' ) && ! str_contains( wp_json_encode( $document ), home_url() ), 'export contains no site URLs or nonces' );
 	// Create a source configuration distinct from the destination for every group.
 	$document['settings']['enabled'] = false;
 	$document['settings']['show_sidebar_icon'] = false;
 	$document['settings']['show_wordpress_edit'] = false;
+	$document['settings']['editor_access'] = array( 'page' => 'both', 'articles' => 'wordpress', 'events' => 'wordpress' );
 	$document['settings']['default_view'] = 'etch';
 	$document['settings']['actions_layout'] = 'split';
 	$document['settings']['default_column'] = 'status';
@@ -47,6 +48,9 @@ try {
 	$check( 200 === $import->get_status() && ! empty( $import->get_data()['imported'] ), 'complete export imports successfully' );
 	$roundtrip = $request( 'GET', '/etch-hub-sort/v1/settings/transfer' )->get_data();
 	$check( $roundtrip['settings'] === $document['settings'], 're-export exactly matches all imported settings' );
+	$legacy = $document;
+	unset( $legacy['settings']['editor_access'] );
+	$check( 200 === $request( 'POST', '/etch-hub-sort/v1/settings/transfer', array( 'document' => $legacy ) )->get_status() && $document['settings']['editor_access'] === etch_hub_sort_editor_access(), 'older exports preserve existing editor preferences' );
 	$before = etch_hub_sort_export_settings();
 	$invalids = array();
 	$bad = $document;
@@ -71,6 +75,15 @@ try {
 	$invalids[] = $bad;
 	$bad = $document;
 	$bad['settings']['status_styles']['custom']['background'] = '#ffffff';
+	$invalids[] = $bad;
+	$bad = $document;
+	$bad['settings']['editor_access']['wp_block'] = 'wordpress';
+	$invalids[] = $bad;
+	$bad = $document;
+	$bad['settings']['editor_access']['page'] = 'invalid';
+	$invalids[] = $bad;
+	$bad = $document;
+	$bad['settings']['editor_access'] = null;
 	$invalids[] = $bad;
 	foreach ( $invalids as $bad ) {
 		$response = $request( 'POST', '/etch-hub-sort/v1/settings/transfer', array( 'document' => $bad ) );

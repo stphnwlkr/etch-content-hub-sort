@@ -61,7 +61,7 @@
         if(id) wrap.append(button(__('View connections','etch-content-hub-sort'),()=>loadPage(id),'btn view-connections'));
       }
       if(node.etch_edit_url){const go=button(__('Edit with Etch','etch-content-hub-sort'),async()=>{go.disabled=true;try{await window.etch.navigation.openPostAsync(Number(String(node.id).replace(/^post:/,'')));window.etchHubContentPanel.close();}catch(error){go.disabled=false;card.append(el('p','gd-hint',error.message));}},'btn primary');wrap.append(go);}
-      if(node.edit_url||node.edit){const link=el('a','btn',__('Edit with WP','etch-content-hub-sort'));link.href=node.edit_url||node.edit;link.target='_blank';link.rel='noopener';wrap.append(link);}
+      if(node.edit_url||node.edit){const management=node.kind==='type'||node.kind==='tax';const link=el('a','btn',management?__('Manage in WordPress','etch-content-hub-sort'):__('Edit with WP','etch-content-hub-sort'));link.href=node.edit_url||node.edit;link.target='_blank';link.rel='noopener';wrap.append(link);}
       if(node.add){const link=el('a','btn',__('Add new','etch-content-hub-sort'));link.href=node.add;link.target='_blank';link.rel='noopener';wrap.append(link);}
       if(node.view_url||node.view){const link=el('a','btn',__('View on site','etch-content-hub-sort'));link.href=node.view_url||node.view;link.target='_blank';link.rel='noopener';wrap.append(link);}
       return wrap;
@@ -171,16 +171,38 @@
     }
     async function loadSite(){
       const request=begin('site');if(siteData){renderSite();return;}
-      try{const posts=[],edges=[],termEdges=[];let after=0,schema={};
-        while(true){const batch=await fetchData(`site?after=${after}`,request.signal);if(!alive||request.seq!==sequence)return;if(batch.indexing){status(__('Building the link index…','etch-content-hub-sort'));continue;}posts.push(...batch.nodes);edges.push(...batch.edges);termEdges.push(...(batch.term_edges||[]));schema=batch.taxonomies||{};siteName=batch.site_name||document.title;if(batch.done)break;if(batch.next_cursor<=after)throw new Error(__('Site map scan could not advance.','etch-content-hub-sort'));after=batch.next_cursor;}
-        const terms=[];after=0;while(true){const batch=await fetchData(`terms?after=${after}`,request.signal);if(!alive||request.seq!==sequence)return;terms.push(...batch.nodes);if(batch.done)break;if(batch.next_cursor<=after)throw new Error(__('Term scan could not advance.','etch-content-hub-sort'));after=batch.next_cursor;}
+      const scan=async (endpoint, accept)=>{
+        let after=0;
+        while(true){
+          const batch=await fetchData(`${endpoint}?after=${after}`,request.signal);
+          if(!alive||request.seq!==sequence)return;
+          if(batch.indexing){status(__('Building the link index…','etch-content-hub-sort'));continue;}
+          accept(batch);
+          if(batch.done)return;
+          if(batch.next_cursor<=after)throw new Error(__('Site map scan could not advance.','etch-content-hub-sort'));
+          after=batch.next_cursor;
+        }
+      };
+      try{
+        const posts=[],edges=[],termEdges=[],terms=[];
+        let schema={};
+        await Promise.all([
+          scan('site',batch=>{
+            posts.push(...batch.nodes);edges.push(...batch.edges);termEdges.push(...(batch.term_edges||[]));
+            schema=batch.taxonomies||{};siteName=batch.site_name||document.title;
+          }),
+          scan('terms',batch=>terms.push(...batch.nodes)),
+        ]);
+        if(!alive||request.seq!==sequence)return;
         const nodes=[],out=[],visible=posts.filter(n=>n.public),ids=new Set(visible.map(n=>n.id));
         const groups=new Map();for(const node of visible){if(!groups.has(node.post_type))groups.set(node.post_type,[]);groups.get(node.post_type).push(node);}
         for(const [type,items]of groups){nodes.push({id:`type:${type}`,kind:'type',group:type,label:items[0].type_label,total:items.length,loaded:items.length,meta:{Published:items.filter(n=>n.status==='publish').length,Drafts:items.filter(n=>['draft','pending'].includes(n.status)).length,Slug:type},edit:items[0].type_manage_url,view:items[0].type_archive_url,add:items[0].type_add_url});for(const n of items){nodes.push({...n,id:`post:${n.id}`,kind:'post',group:type,label:n.title,meta:{Type:n.type,Status:n.status,Modified:n.modified},edit:n.edit_url,view:n.view_url});out.push({source:n.parent&&ids.has(n.parent)?`post:${n.id}`:`type:${type}`,target:`post:${n.parent&&ids.has(n.parent)?n.parent:n.id}`,kind:n.parent&&ids.has(n.parent)?'parent':'has'});}}
         for(const [name,tax]of Object.entries(schema)){const members=terms.filter(n=>n.group===name);nodes.push({id:`tax:${name}`,kind:'tax',group:name,label:tax.label,total:members.length,loaded:members.length,meta:{Terms:members.length,Slug:name},edit:tax.edit});for(const type of tax.types)if(groups.has(type))out.push({source:`type:${type}`,target:`tax:${name}`,kind:'uses'});for(const term of members){nodes.push(term);out.push({source:`tax:${name}`,target:term.id,kind:'of'});if(term.parent)out.push({source:term.id,target:term.parent,kind:'parent'});}}
         const allIds=new Set(nodes.map(n=>n.id));out.push(...termEdges.filter(e=>allIds.has(e.source)&&allIds.has(e.target)));for(const e of edges)if(e.kind==='link'&&ids.has(e.from)&&ids.has(e.to))out.push({source:`post:${e.from}`,target:`post:${e.to}`,kind:'link'});
         siteData={nodes,edges:out,site:siteName};renderSite();
-      }catch(error){if(error.name!=='AbortError'&&request.seq===sequence)status(error.message);}
+      }catch(error){
+        if(error.name!=='AbortError'&&request.seq===sequence){controller.abort();status(error.message);}
+      }
     }
     // Delta's Escape behavior returns from the map to the editor.
     root.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();window.etchHubContentPanel.close();}});

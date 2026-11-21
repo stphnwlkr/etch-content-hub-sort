@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Content Explorer for Etch
  * Description: Browse, search, edit, and map content and shared resources in a dedicated Etch panel.
- * Version: 2.0.1
+ * Version: 2.1.0
  * Requires at least: 5.9
  * Requires PHP: 8.1
  * Update URI: https://github.com/stphnwlkr/etch-content-hub-sort
@@ -20,6 +20,7 @@ require_once __DIR__ . '/includes/github-updates.php';
 require_once __DIR__ . '/includes/statuses.php';
 require_once __DIR__ . '/includes/settings-transfer.php';
 require_once __DIR__ . '/includes/connections.php';
+require_once __DIR__ . '/includes/editor-access.php';
 
 /** Return the saved layout, including the earlier start/end switch. */
 function etch_hub_sort_actions_layout(): string {
@@ -193,7 +194,7 @@ add_action(
 					return current_user_can( 'manage_options' );
 				},
 				'callback'            => static function ( WP_REST_Request $request ) {
-					if ( ! $request->has_param( 'hide_native_content_hub' ) && ! $request->has_param( 'panel_default_view' ) && ! $request->has_param( 'enabled' ) && ! $request->has_param( 'show_sidebar_icon' ) && ! $request->has_param( 'show_wordpress_edit' ) && ! $request->has_param( 'default_view' ) && ! $request->has_param( 'actions_first' ) && ! $request->has_param( 'actions_layout' ) && ! $request->has_param( 'default_column' ) && ! $request->has_param( 'default_order' ) && ! $request->has_param( 'term_default_column' ) && ! $request->has_param( 'term_default_order' ) && ! $request->has_param( 'active_bg' ) && ! $request->has_param( 'active_text' ) && ! $request->has_param( 'button_style' ) && ! $request->has_param( 'hierarchy_style' ) && ! $request->has_param( 'status_style' ) ) {
+					if ( ! $request->has_param( 'hide_native_content_hub' ) && ! $request->has_param( 'panel_default_view' ) && ! $request->has_param( 'enabled' ) && ! $request->has_param( 'show_sidebar_icon' ) && ! $request->has_param( 'show_wordpress_edit' ) && ! $request->has_param( 'default_view' ) && ! $request->has_param( 'actions_first' ) && ! $request->has_param( 'actions_layout' ) && ! $request->has_param( 'default_column' ) && ! $request->has_param( 'default_order' ) && ! $request->has_param( 'term_default_column' ) && ! $request->has_param( 'term_default_order' ) && ! $request->has_param( 'active_bg' ) && ! $request->has_param( 'active_text' ) && ! $request->has_param( 'button_style' ) && ! $request->has_param( 'hierarchy_style' ) && ! $request->has_param( 'status_style' ) && ! $request->has_param( 'editor_access' ) ) {
 						return new WP_Error( 'etch_hub_sort_missing_setting', __( 'Choose a setting to update.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
 					}
 					if ( $request->has_param( 'panel_default_view' ) && ! in_array( $request->get_param( 'panel_default_view' ), array( 'list', 'page', 'site' ), true ) ) { return new WP_Error( 'invalid_panel_view', __( 'Choose a valid default view.', 'etch-content-hub-sort' ), array( 'status' => 400 ) ); }
@@ -252,6 +253,10 @@ add_action(
 							}
 						}
 					}
+					$editor_access = $request->get_param( 'editor_access' );
+					if ( $request->has_param( 'editor_access' ) && ! etch_hub_sort_validate_editor_access( $editor_access ) ) {
+						return new WP_Error( 'etch_hub_sort_invalid_editor_access', __( 'Choose valid editors for the post types. Shared patterns and templates use both editors.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
+					}
 					if ( $request->get_param( 'validate_only' ) ) {
 						return rest_ensure_response( array( 'valid' => true ) );
 					}
@@ -265,6 +270,9 @@ add_action(
 					if ( $request->has_param( 'hide_native_content_hub' ) ) { update_option( 'etch_hub_sort_hide_native_content_hub', $request->get_param( 'hide_native_content_hub' ) ? '1' : '0' ); }
 					if ( $request->has_param( 'show_wordpress_edit' ) ) {
 						update_option( 'etch_hub_sort_show_wordpress_edit', $request->get_param( 'show_wordpress_edit' ) ? '1' : '0' );
+					}
+					if ( $request->has_param( 'editor_access' ) ) {
+						update_option( 'etch_hub_sort_editor_access', $editor_access );
 					}
 					if ( $request->has_param( 'default_view' ) ) {
 						update_option( 'etch_hub_sort_default_view', $request->get_param( 'default_view' ) );
@@ -315,6 +323,7 @@ add_action(
 							'enabled'       => '0' !== get_option( 'etch_hub_sort_enabled', '1' ),
 							'show_sidebar_icon' => '0' !== get_option( 'etch_hub_sort_show_sidebar_icon', '1' ),
 							'show_wordpress_edit' => '0' !== get_option( 'etch_hub_sort_show_wordpress_edit', '1' ),
+							'editor_access' => etch_hub_sort_editor_access(),
 							'hide_native_content_hub' => '1' === get_option( 'etch_hub_sort_hide_native_content_hub', '0' ),
 							'default_view'  => etch_hub_sort_default_view(),
 							'panel_default_view' => get_option( 'etch_hub_sort_panel_default_view', 'list' ),
@@ -815,7 +824,7 @@ add_action(
 								'ancestors' => $post_type->hierarchical ? array_map( 'intval', get_post_ancestors( $post ) ) : array(),
 								'can_edit' => $can_edit,
 								'etch_edit_url' => Etch_Hub_Connections::etch_edit_url( $post ),
-								'wordpress_edit_url' => $can_edit ? esc_url_raw( (string) get_edit_post_link( $post->ID, 'raw' ) ) : null,
+								'wordpress_edit_url' => etch_hub_sort_wordpress_edit_url( $post ),
 								'can_delete' => current_user_can( 'delete_post', $post->ID ),
 							);
 						},
@@ -825,7 +834,7 @@ add_action(
 					return rest_ensure_response(
 						array(
 							'items'    => $items,
-							'can_etch_edit' => current_user_can( 'manage_options' ) && Etch_Hub_Connections::supports_etch_type( $type ),
+							'can_etch_edit' => etch_hub_sort_can_open_etch( $type ),
 							'total'    => (int) $query->found_posts,
 							'pages'    => (int) $query->max_num_pages,
 							'page'     => $page,
@@ -863,7 +872,7 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '2.0.1';
+		$version = '2.1.0';
 		$types   = array();
 		$hierarchical_types = array();
 		$taxonomies = array();
@@ -915,6 +924,8 @@ add_action(
 					'statusLabels' => wp_list_pluck( get_post_stati( array(), 'objects' ), 'label' ),
 					'nativeStatuses' => array_values( get_post_stati( array( '_builtin' => true ) ) ),
 					'types'    => $types,
+					'editorTypes' => current_user_can( 'manage_options' ) ? etch_hub_sort_editor_types() : array(),
+					'editorAccess' => current_user_can( 'manage_options' ) ? etch_hub_sort_editor_access() : array(),
 					'taxonomies' => $taxonomies,
 					'hierarchicalTypes' => $hierarchical_types,
 					'hierarchicalTaxonomies' => $hierarchical_taxonomies,

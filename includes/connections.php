@@ -91,11 +91,11 @@ final class Etch_Hub_Connections {
 	public static function supports_etch_type( string $name ): bool {
 		$type = get_post_type_object( $name );
 		$owned = array_map( 'sanitize_key', array_keys( (array) get_option( 'etch_cpts', array() ) ) );
-		return ! in_array( $name, array( 'attachment', 'wp_navigation', 'nav_menu_item' ), true ) && ( in_array( $name, array( 'wp_block', 'wp_template', 'wp_template_part' ), true ) || ( $type && $type->public ) || in_array( $name, $owned, true ) );
+		return ! in_array( $name, array( 'attachment', 'wp_navigation', 'nav_menu_item' ), true ) && ( in_array( $name, ETCH_HUB_SORT_SHARED_EDITOR_TYPES, true ) || ( $type && $type->public ) || in_array( $name, $owned, true ) );
 	}
 
 	public static function etch_edit_url( WP_Post $post ): string {
-		if ( ! defined( 'ETCH_PLUGIN_FILE' ) || ! self::supports_etch_type( $post->post_type ) || ! current_user_can( 'manage_options' ) || ! current_user_can( 'edit_post', $post->ID ) ) { return ''; }
+		if ( ! etch_hub_sort_can_open_etch( $post->post_type ) || ! current_user_can( 'edit_post', $post->ID ) ) { return ''; }
 		return add_query_arg( array( 'etch' => 'magic', 'post_id' => $post->ID ), home_url( '/' ) );
 	}
 
@@ -103,7 +103,7 @@ final class Etch_Hub_Connections {
 		$post = get_post( $id );
 		if ( ! $post || ! in_array( $post->post_type, self::types(), true ) || in_array( $post->post_status, array( 'trash', 'auto-draft' ), true ) || ! current_user_can( 'edit_post', $id ) ) { return null; }
 		$type = get_post_type_object( $post->post_type );
-		return array( 'id' => $id, 'title' => wp_specialchars_decode( wp_strip_all_tags( get_the_title( $id ) ), ENT_QUOTES ) ?: '#' . $id, 'post_type' => $post->post_type, 'type' => $type ? ( $type->labels->singular_name ?: $type->label ?: $post->post_type ) : $post->post_type, 'kind' => in_array( $post->post_type, array( 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation' ), true ) ? 'shared' : 'page', 'status' => $post->post_status, 'path' => $type && is_post_type_viewable( $type ) ? wp_make_link_relative( (string) get_permalink( $id ) ) : '', 'edit_url' => get_edit_post_link( $id, 'raw' ), 'etch_edit_url' => self::etch_edit_url( $post ), 'parent' => (int) $post->post_parent, 'public' => (bool) ( $type && $type->public ), 'type_label' => $type ? ( $type->labels->name ?: $post->post_type ) : $post->post_type, 'view_url' => is_post_publicly_viewable( $post ) ? (string) get_permalink( $post ) : '', 'type_manage_url' => $type && $type->show_ui ? admin_url( 'edit.php?post_type=' . $post->post_type ) : '', 'type_add_url' => $type && current_user_can( $type->cap->create_posts ) ? admin_url( 'post-new.php?post_type=' . $post->post_type ) : '', 'type_archive_url' => get_post_type_archive_link( $post->post_type ) ?: '', 'modified' => mysql2date( 'j M Y', $post->post_modified ), 'thumb' => get_the_post_thumbnail_url( $post, 'medium' ) ?: '' );
+		return array( 'id' => $id, 'title' => wp_specialchars_decode( wp_strip_all_tags( get_the_title( $id ) ), ENT_QUOTES ) ?: '#' . $id, 'post_type' => $post->post_type, 'type' => $type ? ( $type->labels->singular_name ?: $type->label ?: $post->post_type ) : $post->post_type, 'kind' => in_array( $post->post_type, array( 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation' ), true ) ? 'shared' : 'page', 'status' => $post->post_status, 'path' => $type && is_post_type_viewable( $type ) ? wp_make_link_relative( (string) get_permalink( $id ) ) : '', 'edit_url' => etch_hub_sort_wordpress_edit_url( $post ), 'etch_edit_url' => self::etch_edit_url( $post ), 'parent' => (int) $post->post_parent, 'public' => (bool) ( $type && $type->public ), 'type_label' => $type ? ( $type->labels->name ?: $post->post_type ) : $post->post_type, 'view_url' => is_post_publicly_viewable( $post ) ? (string) get_permalink( $post ) : '', 'type_manage_url' => $type && $type->show_ui ? admin_url( 'edit.php?post_type=' . $post->post_type ) : '', 'type_add_url' => $type && current_user_can( $type->cap->create_posts ) ? admin_url( 'post-new.php?post_type=' . $post->post_type ) : '', 'type_archive_url' => get_post_type_archive_link( $post->post_type ) ?: '', 'modified' => mysql2date( 'j M Y', $post->post_modified ), 'thumb' => get_the_post_thumbnail_url( $post, 'medium' ) ?: '' );
 	}
 
 	/** Paginated site inventory with permission-filtered edges, including disconnected content. */
@@ -137,14 +137,23 @@ final class Etch_Hub_Connections {
 		}
 		$term_edges = array();
 		$schema = self::taxonomy_schema();
+		$public_ids = array();
 		foreach ( $nodes as $node ) {
-			if ( ! $node['public'] ) { continue; }
-			$taxes = array_keys( array_filter( $schema, static fn( $tax ) => in_array( $node['post_type'], $tax['types'], true ) ) );
+			if ( $node['public'] ) {
+				$public_ids[ $node['post_type'] ][] = $node['id'];
+			}
+		}
+		$editable_terms = array();
+		foreach ( $public_ids as $post_type => $object_ids ) {
+			$taxes = array_keys( array_filter( $schema, static fn( $tax ) => in_array( $post_type, $tax['types'], true ) ) );
 			if ( ! $taxes ) { continue; }
-			$terms = wp_get_object_terms( $node['id'], $taxes );
+			$terms = wp_get_object_terms( $object_ids, $taxes, array( 'fields' => 'all_with_object_id' ) );
 			if ( is_wp_error( $terms ) ) { continue; }
 			foreach ( $terms as $term ) {
-				if ( current_user_can( 'edit_term', $term->term_id ) ) { $term_edges[] = array( 'source' => 'post:' . $node['id'], 'target' => 'term:' . $term->term_id, 'kind' => 'in' ); }
+				$editable_terms[ $term->term_id ] ??= current_user_can( 'edit_term', $term->term_id );
+				if ( $editable_terms[ $term->term_id ] ) {
+					$term_edges[] = array( 'source' => 'post:' . $term->object_id, 'target' => 'term:' . $term->term_id, 'kind' => 'in' );
+				}
 			}
 		}
 		return rest_ensure_response( array( 'taxonomies' => $schema, 'site_name' => get_bloginfo( 'name' ), 'home' => home_url( '/' ), 'front' => (int) get_option( 'page_on_front' ), 'term_edges' => $term_edges, 'indexing' => false, 'nodes' => $nodes, 'edges' => $edges, 'next_cursor' => $ids ? end( $ids ) : $after, 'done' => count( $ids ) < 100 ) );

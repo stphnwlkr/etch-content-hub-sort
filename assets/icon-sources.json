@@ -21,6 +21,12 @@
     "ui-plus-circle.svg": "circle-plus",
     "ui-plus.svg": "plus",
     "ui-x.svg": "x",
-    "ui-connections.svg": "network"
+    "ui-connections.svg": "network",
+    "ui-list.svg": "list",
+    "ui-globe.svg": "globe",
+    "ui-sliders-horizontal.svg": "sliders-horizontal",
+    "ui-toggle-left.svg": "toggle-left",
+    "ui-palette.svg": "palette",
+    "ui-arrow-left-right.svg": "arrow-left-right"
   }
 }

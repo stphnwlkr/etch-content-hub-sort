@@ -1,9 +1,9 @@
 /* Delta 0.5.0 map styles, copyright 21Press, GPL-2.0-or-later. Scoped and adapted for this plugin. */
-:where(.etch-delta-map) .graph-head { display: flex; white-space: nowrap; overflow: hidden; align-items: center; gap: 8px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--delta-border); font-size: 13px; }
-:where(.etch-delta-map) .graph-head b { font-size: 14px; }
+:where(.etch-delta-map) .graph-head { display: flex; white-space: nowrap; overflow: hidden; align-items: center; gap: 8px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--delta-border); font-size: calc(0.8125rem * var(--etch-explorer-text-scale, 1)); }
+:where(.etch-delta-map) .graph-head b { font-size: calc(0.875rem * var(--etch-explorer-text-scale, 1)); }
 :where(.etch-delta-map) .graph-head .spacer { flex: 1; }
 :where(.etch-delta-map) .graph-ico svg { width: 18px; height: 18px; display: block; color: var(--delta-accent-text); }
-:where(.etch-delta-map) .graph-sub, :where(.etch-delta-map) .graph-note { overflow: hidden; text-overflow: ellipsis; color: var(--delta-muted); font-size: 12px; }
+:where(.etch-delta-map) .graph-sub, :where(.etch-delta-map) .graph-note { overflow: hidden; text-overflow: ellipsis; color: var(--delta-muted); font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1)); }
 :where(.etch-delta-map) .graph-stage { flex: 1; min-height: 0; overflow: auto; display: flex; padding: 28px 32px; }
 /* The graph keeps its size; a narrow window scrolls it instead of squeezing it. */
 :where(.etch-delta-map) .graph-canvas { position: relative; margin: auto; min-width: 820px; display: flex; flex-direction: column; gap: 56px; }
@@ -16,31 +16,31 @@
 :where(.etch-delta-map) .gcol.center { align-items: center; }
 :where(.etch-delta-map) .gcol.row { position: relative; flex-direction: row; flex-wrap: wrap; justify-content: center; }
 :where(.etch-delta-map) .gcol.row .gcol-title { width: 100%; text-align: center; }
-:where(.etch-delta-map) .gcol-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--delta-muted); }
+:where(.etch-delta-map) .gcol-title { font-size: calc(0.6875rem * var(--etch-explorer-text-scale, 1)); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--delta-muted); }
 :where(.etch-delta-map) .gcol-title .count { padding: 0 5px; border-radius: 3px; background: var(--delta-panel-soft); font-weight: 500; }
 :where(.etch-delta-map) .gnode { position: relative; display: flex; flex-direction: column; gap: 1px; min-width: 150px; max-width: 220px; padding: 8px 12px 8px 26px; text-align: left; border: 1px solid var(--delta-border); border-radius: 8px; background: var(--delta-panel); cursor: pointer; }
 :where(.etch-delta-map) .gnode::before { content: ""; position: absolute; left: 11px; top: 13px; width: 8px; height: 8px; border-radius: 50%; background: var(--delta-muted); }
-:where(.etch-delta-map) .gnode b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-:where(.etch-delta-map) .gnode span { font-size: 11px; color: var(--delta-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(.etch-delta-map) .gnode b { font-size: calc(0.8125rem * var(--etch-explorer-text-scale, 1)); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(.etch-delta-map) .gnode span { font-size: calc(0.6875rem * var(--etch-explorer-text-scale, 1)); color: var(--delta-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :where(.etch-delta-map) .gnode:hover { border-color: var(--delta-fg); }
 :where(.etch-delta-map) .gnode.shared { border-color: color-mix(in srgb, var(--delta-shared) 45%, var(--delta-border)); background: var(--delta-shared-bg); }
 :where(.etch-delta-map) .gnode.shared::before { background: var(--delta-shared); }
 :where(.etch-delta-map) .gnode.here { min-width: 190px; padding: 12px 16px 12px 30px; border: 2px solid var(--delta-accent); background: var(--delta-accent-soft); }
 :where(.etch-delta-map) .gnode.here::before { left: 13px; top: 18px; background: var(--delta-ok); }
-:where(.etch-delta-map) .gnode.here b { font-size: 15px; }
-:where(.etch-delta-map) .graph-legend { display: flex; gap: 16px; padding: 8px 16px; border-top: 1px solid var(--delta-border); font-size: 11px; color: var(--delta-muted); }
+:where(.etch-delta-map) .gnode.here b { font-size: calc(0.9375rem * var(--etch-explorer-text-scale, 1)); }
+:where(.etch-delta-map) .graph-legend { display: flex; gap: 16px; padding: 8px 16px; border-top: 1px solid var(--delta-border); font-size: calc(0.6875rem * var(--etch-explorer-text-scale, 1)); color: var(--delta-muted); }
 :where(.etch-delta-map) .graph-legend .dot { display: inline-block; width: 8px; height: 8px; margin-inline-end: 6px; border-radius: 50%; background: var(--delta-muted); vertical-align: 0; }
 :where(.etch-delta-map) .graph-legend .dot.here { background: var(--delta-ok); }
 :where(.etch-delta-map) .graph-legend .dot.shared { background: var(--delta-shared); }
 :where(.etch-delta-map) .gnode[aria-pressed="true"] { outline: 2px solid var(--delta-fg); outline-offset: 2px; }
 :where(.etch-delta-map) .gnode.here[aria-pressed="false"] { outline: none; }
 :where(.etch-delta-map) .gd-title { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-:where(.etch-delta-map) .gd-title b { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-:where(.etch-delta-map) .gd-sub { margin: 2px 0 10px 16px; font-size: 12px; color: var(--delta-muted); }
-:where(.etch-delta-map) .gd-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 7px 0; border-top: 1px solid var(--delta-border); font-size: 13px; }
+:where(.etch-delta-map) .gd-title b { font-size: calc(0.9375rem * var(--etch-explorer-text-scale, 1)); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(.etch-delta-map) .gd-sub { margin: 2px 0 10px 16px; font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1)); color: var(--delta-muted); }
+:where(.etch-delta-map) .gd-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 7px 0; border-top: 1px solid var(--delta-border); font-size: calc(0.8125rem * var(--etch-explorer-text-scale, 1)); }
 :where(.etch-delta-map) .gd-row span { color: var(--delta-muted); }
 :where(.etch-delta-map) .gd-row b { font-weight: 500; text-align: right; overflow-wrap: anywhere; }
-:where(.etch-delta-map) .gd-hint { margin: 10px 2px 0; font-size: 12px; line-height: 1.5; color: var(--delta-muted); }
+:where(.etch-delta-map) .gd-hint { margin: 10px 2px 0; font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1)); line-height: 1.5; color: var(--delta-muted); }
 :where(.etch-delta-map) .gd-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 :where(.etch-delta-map) .gd-actions .btn { justify-content: center; }
 :where(.etch-delta-map) .gd-actions .btn:disabled { opacity: .45; cursor: not-allowed; }
@@ -56,7 +56,7 @@
 :where(.etch-delta-map) .gnode { width: 200px; min-width: 0; max-width: none; }
 :where(.etch-delta-map) .gnode.here { width: 220px; }
 :where(.etch-delta-map) .graph-grid { gap: 96px; }
-:where(.etch-delta-map) .gempty { width: 200px; padding: 10px 12px; border: 1px dashed var(--delta-border); border-radius: 8px; font-size: 12px; color: var(--delta-muted); }
+:where(.etch-delta-map) .gempty { width: 200px; padding: 10px 12px; border: 1px dashed var(--delta-border); border-radius: 8px; font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1)); color: var(--delta-muted); }
 :where(.etch-delta-map) .gcol.row { align-self: center; }
 /* the row is only as wide as its cards, so its title sits above the first card */
 :where(.etch-delta-map) .gcol.row { width: fit-content; }
@@ -85,21 +85,21 @@
 :where(.etch-delta-map) .site-find { display: flex; align-items: center; gap: 6px; width: 200px; padding: 0 8px 0 6px; border: 1px solid var(--delta-border); border-radius: 6px; color: var(--delta-muted); }
 :where(.etch-delta-map) .site-find:focus-within { border-color: var(--delta-accent); }
 :where(.etch-delta-map) .site-find svg { flex: none; width: 14px; height: 14px; }
-:where(.etch-delta-map) .site-find input { flex: 1; min-width: 0; padding: 6px 0; border: 0; outline: 0; background: none; color: var(--delta-fg); font: inherit; font-size: 12px; }
+:where(.etch-delta-map) .site-find input { flex: 1; min-width: 0; padding: 6px 0; border: 0; outline: 0; background: none; color: var(--delta-fg); font: inherit; font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1)); }
 :where(.etch-delta-map) .site-find input::-webkit-search-cancel-button { display: none; }
-:where(.etch-delta-map) .site-hint { overflow: hidden; text-overflow: ellipsis; color: var(--delta-muted); font-size: 12px; }
+:where(.etch-delta-map) .site-hint { overflow: hidden; text-overflow: ellipsis; color: var(--delta-muted); font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1)); }
 :where(.etch-delta-map) .site-hint[hidden] { display: none; }
 
 /* Details of the picked node, in the side panel. */
 :where(.etch-delta-map) .gd .dot.square, :where(.etch-delta-map) .gd-rel .dot.square { border-radius: 0; transform: rotate(45deg) scale(.85); }
-:where(.etch-delta-map) .gd-desc { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: var(--delta-muted); }
+:where(.etch-delta-map) .gd-desc { margin: 0 0 10px; font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1)); line-height: 1.5; color: var(--delta-muted); }
 :where(.etch-delta-map) .gd-actions { flex-direction: row; flex-wrap: wrap; }
 :where(.etch-delta-map) .gd-actions .btn { flex: 1 1 auto; }
 :where(.etch-delta-map) .gd-actions .btn.primary { flex-basis: 100%; }
-:where(.etch-delta-map) .gd-rel h4 { margin: 18px 0 6px; font-size: 12px; font-weight: 500; color: var(--delta-muted); }
+:where(.etch-delta-map) .gd-rel h4 { margin: 18px 0 6px; font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1)); font-weight: 500; color: var(--delta-muted); }
 :where(.etch-delta-map) .gd-rel h4 span { opacity: .6; }
 :where(.etch-delta-map) .gd-rel ul { margin: 0; padding: 0; list-style: none; }
-:where(.etch-delta-map) .gd-rel button { display: flex; align-items: center; gap: 10px; width: calc(100% + 16px); margin: 0 -8px; padding: 5px 8px; border: 0; border-radius: 6px; background: none; color: var(--delta-fg); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+:where(.etch-delta-map) .gd-rel button { display: flex; align-items: center; gap: 10px; width: calc(100% + 16px); margin: 0 -8px; padding: 5px 8px; border: 0; border-radius: 6px; background: none; color: var(--delta-fg); font: inherit; font-size: calc(0.78125rem * var(--etch-explorer-text-scale, 1)); text-align: left; cursor: pointer; }
 :where(.etch-delta-map) .gd-rel button:hover { background: var(--delta-panel-soft); }
 :where(.etch-delta-map) .gd-rel .dot { display: inline-block; flex: none; width: 6px; height: 6px; border-radius: 50%; }
 
@@ -143,7 +143,7 @@
   box-shadow: none;
   color: var(--delta-fg);
   font-family: var(--delta-font-ui);
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--etch-explorer-text-scale, 1));
 }
 
 .etch-delta-map .delta-graph-search:focus {
@@ -156,7 +156,7 @@
 .etch-delta-map .delta-graph-hint {
   margin: -6px 0 10px;
   color: var(--delta-muted);
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1));
   text-align: right;
 }
 
@@ -177,7 +177,7 @@
   background: none;
   color: var(--delta-fg);
   font-family: var(--delta-font-ui);
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1));
   cursor: pointer;
   transition: opacity .2s;
 }
@@ -313,39 +313,13 @@
   opacity: .26;
 }
 
-/* The page being looked at (the Front panel's Site map): a ring round its dot, and its name always shows. */
-/* In the node's own colour, plus a soft ring that grows and fades. */
-.delta-graph-here,
-.delta-graph-pulse {
+/* Keep the current item ring steady at every zoom level. */
+.delta-graph-here {
   fill: none;
   stroke: var(--c);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
-}
-
-.delta-graph-pulse {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: delta-graph-pulse 2.4s ease-out infinite;
-}
-
-@keyframes delta-graph-pulse {
-  from {
-    opacity: .6;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(2.2);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .delta-graph-pulse {
-    animation: none;
-    opacity: 0;
-  }
 }
 
 .delta-graph-svg .delta-graph-node.is-here .delta-graph-label {
@@ -358,7 +332,7 @@
 .delta-graph-label {
   fill: var(--delta-muted);
   font-family: var(--delta-font-ui);
-  font-size: 9px;
+  font-size: calc(0.5625rem * var(--etch-explorer-text-scale, 1));
   letter-spacing: .01em;
   pointer-events: none;
   opacity: .85;
@@ -366,7 +340,7 @@
 
 .delta-graph-label--big {
   fill: var(--delta-fg);
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--etch-explorer-text-scale, 1));
   font-weight: 600;
   opacity: 1;
 }
@@ -425,14 +399,14 @@
   background: transparent;
   color: var(--delta-muted);
   font-family: var(--delta-font-ui);
-  font-size: 15px;
+  font-size: calc(0.9375rem * var(--etch-explorer-text-scale, 1));
   line-height: 1;
   cursor: pointer;
   transition: color .2s, background .2s;
 }
 
 .delta-graph-tool--wide {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1));
 }
 
 .delta-graph-tool:hover {
@@ -447,7 +421,7 @@
   display: flex;
   gap: 18px;
   color: var(--delta-muted);
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--etch-explorer-text-scale, 1));
 }
 
 .delta-graph-legend span {
@@ -520,7 +494,7 @@
   padding: 0;
   background: none;
   color: var(--delta-muted);
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1));
   font-weight: 400;
 }
 
@@ -537,7 +511,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--delta-muted);
-  font-size: 18px;
+  font-size: calc(1.125rem * var(--etch-explorer-text-scale, 1));
   line-height: 1;
   cursor: pointer;
 }
@@ -561,7 +535,7 @@
   margin: 0 0 14px;
   color: var(--delta-fg);
   font-family: var(--delta-font-display);
-  font-size: 17px;
+  font-size: calc(1.0625rem * var(--etch-explorer-text-scale, 1));
   font-weight: 600;
   letter-spacing: -.01em;
   line-height: 1.3;
@@ -578,7 +552,7 @@
   gap: 16px;
   padding: 6px 0;
   border-bottom: 1px solid var(--delta-graph-hair);
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1));
 }
 
 .delta-graph-meta dt {
@@ -606,7 +580,7 @@
   background: transparent;
   box-shadow: none;
   color: var(--delta-fg);
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1));
   line-height: 28px;
   transition: background .2s, border-color .2s;
 }
@@ -630,7 +604,7 @@
 .etch-delta-map .delta-graph-panel .delta-graph-rel h4 {
   margin: 18px 0 6px;
   color: var(--delta-muted);
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1));
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -662,7 +636,7 @@
   background: transparent;
   color: var(--delta-fg);
   font: inherit;
-  font-size: 12.5px;
+  font-size: calc(0.78125rem * var(--etch-explorer-text-scale, 1));
   text-align: left;
   cursor: pointer;
   transition: background .15s;
@@ -686,7 +660,7 @@
 
 .delta-graph-empty {
   color: var(--delta-muted);
-  font-size: 12.5px;
+  font-size: calc(0.78125rem * var(--etch-explorer-text-scale, 1));
 }
 
 @media (max-width: 782px) {
@@ -712,12 +686,12 @@
 .delta-graph-svg .delta-graph-label.delta-graph-label--map {
   display: block;
   fill: var(--delta-fg);
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--etch-explorer-text-scale, 1));
   opacity: .8;
 }
 
 .delta-graph-node--map.is-branch .delta-graph-label--map {
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--etch-explorer-text-scale, 1));
   font-weight: 600;
   opacity: 1;
 }
@@ -756,7 +730,7 @@
   fill: var(--delta-fg);
   font-weight: 600;
   font-family: var(--delta-font-ui);
-  font-size: 9.5px;
+  font-size: calc(0.59375rem * var(--etch-explorer-text-scale, 1));
   pointer-events: none;
 }
 
@@ -822,7 +796,7 @@
 
 .delta-graph-key--text::before {
   content: "Aa";
-  font-size: 10px;
+  font-size: calc(0.625rem * var(--etch-explorer-text-scale, 1));
   font-style: normal;
   color: var(--delta-muted);
 }
@@ -860,7 +834,7 @@
 .etch-delta-map .delta-graph-panel .delta-graph-desc {
   margin: -4px 0 16px;
   color: var(--delta-muted);
-  font-size: 12.5px;
+  font-size: calc(0.78125rem * var(--etch-explorer-text-scale, 1));
   line-height: 1.5;
 }
 
@@ -903,7 +877,7 @@
   place-items: center;
   margin: 0;
   color: var(--delta-muted);
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--etch-explorer-text-scale, 1));
 }
 
 /* Inside the stage: group filters top left, display switches top right. Both sit on a solid strip. */
@@ -921,7 +895,7 @@
 
 .delta-graph-stage .delta-graph-chip {
   height: 22px;
-  font-size: 11px;
+  font-size: calc(0.6875rem * var(--etch-explorer-text-scale, 1));
 }
 
 .delta-graph-stage .delta-graph-legend {
@@ -975,7 +949,7 @@
  --delta-accent:#3858e9;--delta-panel:#272727;--delta-panel-soft:#2c2c2c;--delta-border:#3c3c3c;--delta-fg:#f3f1f1;--delta-muted:#949494;--delta-ok:#4ab866;
  --delta-shared:#9b4dff;--delta-shared-bg:color-mix(in srgb,#9b4dff 26%,var(--delta-panel));--delta-accent-soft:color-mix(in srgb,var(--delta-accent) 26%,var(--delta-panel));
  --delta-font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
- display:grid;grid-template-columns:minmax(0,1fr) 400px;width:100%;height:100%;min-height:0;color:var(--delta-fg);background:var(--delta-panel);font:13px/1.45 var(--delta-font-ui);-webkit-font-smoothing:antialiased;
+ display:grid;grid-template-columns:minmax(0,1fr) 400px;width:100%;height:100%;min-height:0;color:var(--delta-fg);background:var(--delta-panel);font:calc(.8125rem * var(--etch-explorer-text-scale, 1))/1.45 var(--delta-font-ui);-webkit-font-smoothing:antialiased;
 }
 .etch-delta-map * {box-sizing:border-box;}
 .etch-delta-map [hidden] {display:none!important;}
@@ -985,20 +959,20 @@
 .etch-delta-graph {display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-right:1px solid var(--delta-border);}
 .etch-delta-detail {min-width:0;min-height:0;overflow:auto;padding:12px 16px 24px;}
 .etch-delta-detail-content {margin-top:20px;}
-.etch-delta-map .section-label {font-size:12px;font-weight:600;margin:0 0 10px;}
+.etch-delta-map .section-label {font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1));font-weight:600;margin:0 0 10px;}
 .etch-delta-map .has-action {display:flex;align-items:center;justify-content:space-between;}
 .etch-delta-map .selcard {padding:12px;border:1px solid var(--delta-border);border-radius:6px;}
 .etch-delta-map .dot {display:inline-block;flex:none;width:7px;height:7px;border-radius:50%;background:var(--delta-muted);}
-.etch-delta-map .btn {display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 12px;border:1px solid var(--delta-border);border-radius:6px;background:transparent;color:var(--delta-fg);font:inherit;font-size:12px;text-decoration:none;}
+.etch-delta-map .btn {display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 12px;border:1px solid var(--delta-border);border-radius:6px;background:transparent;color:var(--delta-fg);font:inherit;font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1));text-decoration:none;}
 .etch-delta-map .btn.primary {border-color:var(--delta-accent);background:var(--delta-accent);}
 .etch-delta-map .btn.clear {padding:2px 8px;border:0;color:var(--delta-muted);}
-.etch-delta-map .icon-btn {width:28px;height:28px;border:0;background:none;color:var(--delta-muted);font-size:22px;}
+.etch-delta-map .icon-btn {width:28px;height:28px;border:0;background:none;color:var(--delta-muted);font-size: calc(1.375rem * var(--etch-explorer-text-scale, 1));}
 .etch-delta-map .connection-icon {display:block;width:18px;height:18px;flex:none;background:currentColor;mask:url('ui-connections.svg') center/contain no-repeat;}
 .etch-delta-map .search-icon {width:12px;height:12px;border:1px solid currentColor;border-radius:50%;position:relative;}
 .etch-delta-map .search-icon::after {content:'';position:absolute;width:4px;height:1px;background:currentColor;right:-3px;bottom:-1px;transform:rotate(45deg);}
 .etch-delta-map .map-tabs {padding:0;margin:4px 0 12px;}
 .etch-delta-map .intab-group {display:flex;padding:2px;border:1px solid var(--delta-border);border-radius:7px;}
-.etch-delta-map .intab {flex:1;padding:5px 12px;background:transparent;border:1px solid transparent;border-radius:4px;font-size:12px;color:var(--delta-muted);}
+.etch-delta-map .intab {flex:1;padding:5px 12px;background:transparent;border:1px solid transparent;border-radius:4px;font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1));color:var(--delta-muted);}
 .etch-delta-map .intab[aria-selected="true"] {background:var(--delta-panel-soft);border-color:var(--delta-border);color:var(--delta-fg);}
 .etch-delta-map .v-hint {margin:auto;padding:20px;color:var(--delta-muted);}
 .etch-delta-map .site-stage {height:auto;min-height:0;flex:1;padding:0;margin:0;border:0;border-radius:0;box-shadow:none;}
@@ -1013,7 +987,7 @@
 @media(max-width:850px){.etch-delta-map{grid-template-columns:minmax(0,1fr) 300px;}}
 @media(max-width:600px){.etch-delta-map{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(260px,1fr) auto;overflow:auto;}.etch-delta-detail{max-height:300px;border-top:1px solid var(--delta-border);}.etch-delta-map .delta-graph-stage .delta-graph-filters,.etch-delta-map .delta-graph-stage .delta-graph-legend{max-width:calc(50% - 16px);}}
 .etch-delta-map {background:#1e1e1e;}
-.etch-delta-graph {margin:12px;border:1px solid var(--delta-border);border-radius:12px;background:var(--delta-panel);box-shadow:0 16px 40px #0008;}
+.etch-delta-graph {margin:var(--hub-panel-inset,12px);border:1px solid var(--delta-border);border-radius:var(--hub-panel-radius,12px);background:var(--delta-panel);box-shadow:var(--hub-panel-shadow,0 16px 40px #0008);}
 .etch-delta-detail {background:var(--delta-panel);border-left:1px solid var(--delta-border);}
 
 .etch-delta-map .map-back-to-list { flex-shrink: 0; cursor: pointer; }
@@ -1028,14 +1002,14 @@
 
 /* Match the graph card's floating frame while retaining independent detail scrolling. */
 .etch-delta-map .etch-delta-detail {
-  margin: 12px 12px 12px 0;
+  margin: var(--hub-panel-inset, 12px) var(--hub-panel-inset, 12px) var(--hub-panel-inset, 12px) 0;
   border: 1px solid var(--delta-border);
-  border-radius: 12px;
+  border-radius: var(--hub-panel-radius, 12px);
   background: var(--delta-panel);
-  box-shadow: 0 16px 40px #0008;
+  box-shadow: var(--hub-panel-shadow, 0 16px 40px #0008);
 }
 @media (max-width: 600px) {
-  .etch-delta-map .etch-delta-detail { margin: 0 12px 12px; }
+  .etch-delta-map .etch-delta-detail { margin: 0 var(--hub-panel-inset, 12px) var(--hub-panel-inset, 12px); }
 }
 
 .etch-delta-map .icon-btn:disabled { opacity: .35; cursor: default; }
@@ -1047,10 +1021,10 @@
 .etch-delta-map .connection-group { display: flex; flex-direction: column; gap: 8px; width: 200px; min-width: 0; }
 .etch-delta-map .connection-group .gcol-title { position: static; width: auto; white-space: normal; }
 .etch-delta-map .connection-group-cards { display: flex; flex-direction: column; gap: 8px; }
-.etch-delta-map .connection-group-search { box-sizing: border-box; width: 100%; min-width: 0; padding: 7px 9px; border: 1px solid var(--delta-border); border-radius: 6px; color: var(--delta-fg); background: var(--delta-panel-soft); font: inherit; font-size: 12px; }
+.etch-delta-map .connection-group-search { box-sizing: border-box; width: 100%; min-width: 0; padding: 7px 9px; border: 1px solid var(--delta-border); border-radius: 6px; color: var(--delta-fg); background: var(--delta-panel-soft); font: inherit; font-size: calc(0.75rem * var(--etch-explorer-text-scale, 1)); }
 .etch-delta-map .connection-group-pager { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.etch-delta-map .connection-group-pager .btn { min-width: 28px; min-height: 28px; padding: 2px 8px; font-size: 18px; }
-.etch-delta-map .connection-group-range { color: var(--delta-muted); font-size: 11px; }
+.etch-delta-map .connection-group-pager .btn { min-width: 28px; min-height: 28px; padding: 2px 8px; font-size: calc(1.125rem * var(--etch-explorer-text-scale, 1)); }
+.etch-delta-map .connection-group-range { color: var(--delta-muted); font-size: calc(0.6875rem * var(--etch-explorer-text-scale, 1)); }
 .etch-delta-map .gcol.uses .connection-group { width: auto; max-width: 700px; }
 .etch-delta-map .gcol.uses .connection-group-cards { flex-direction: row; flex-wrap: wrap; justify-content: center; }
 .etch-delta-map .gcol.uses .connection-group-search, .etch-delta-map .gcol.uses .connection-group-pager { align-self: center; width: 200px; }

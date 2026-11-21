@@ -14,6 +14,7 @@ function etch_hub_sort_export_settings(): array {
 		'enabled' => '0' !== get_option( 'etch_hub_sort_enabled', '1' ),
 		'show_sidebar_icon' => '0' !== get_option( 'etch_hub_sort_show_sidebar_icon', '1' ),
 		'hide_native_content_hub' => '1' === get_option( 'etch_hub_sort_hide_native_content_hub', '0' ),
+		'editor_access' => etch_hub_sort_editor_access(),
 		'show_wordpress_edit' => '0' !== get_option( 'etch_hub_sort_show_wordpress_edit', '1' ),
 		'default_view' => etch_hub_sort_default_view(),
 		'panel_default_view' => get_option( 'etch_hub_sort_panel_default_view', 'list' ),
@@ -44,6 +45,9 @@ function etch_hub_sort_transfer_requests( array $document ) {
 	// Earlier version-1 exports predate the panel preference. Preserve the local preference.
 	if ( ! array_key_exists( 'panel_default_view', $settings ) ) { $settings['panel_default_view'] = get_option( 'etch_hub_sort_panel_default_view', 'list' ); }
 	if ( ! array_key_exists( 'hide_native_content_hub', $settings ) ) { $settings['hide_native_content_hub'] = '1' === get_option( 'etch_hub_sort_hide_native_content_hub', '0' ); }
+	if ( ! array_key_exists( 'editor_access', $settings ) ) {
+		$settings['editor_access'] = etch_hub_sort_editor_access();
+	}
 	$expected = etch_hub_sort_export_settings();
 	if ( ! etch_hub_sort_transfer_keys_match( $settings, $expected ) ) {
 		return $invalid;

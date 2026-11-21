@@ -1,6 +1,8 @@
 Content Explorer for Etch includes map rendering code and styles adapted from Delta 0.5.0 by 21Press (https://deltatheme.com), supplied under GPLv2 or later. The adapted files assets/delta-graph.js and the Delta-derived portions of assets/connections.js and assets/connections.css are distributed under GPLv3 or later as part of this plugin. Changes isolate the renderer, scope styles, adapt data to Etch and WordPress, and integrate selection and editing with the plugin panel.
 
-The functional UI icons come from lucide-static 1.77.0. They use ISC licensing with retained MIT notices for Feather-derived work. See assets/LUCIDE-LICENSE.txt and assets/icon-sources.json. Stroke widths were adjusted to match Etch.
+The Lucide UI icons come from lucide-static 1.77.0. They use ISC licensing with retained MIT notices for Feather-derived work. See assets/LUCIDE-LICENSE.txt and assets/icon-sources.json. Stroke widths were adjusted to match Etch.
+
+The Site map menu uses the Chart Relationship icon in the free Stroke Rounded style by Hugeicons (https://hugeicons.com/icon/chart-relationship?style=stroke-rounded). The icon is distributed under the MIT License. See assets/HUGEICONS-LICENSE.txt.
 
 The locally bundled Web Awesome 3.15.0 accordion and its dependencies are included under their MIT/BSD licenses. Web Awesome copyright Fonticons, Inc. See assets/vendor/webawesome/LICENSE.md, licenses/, DEPENDENCIES.txt, and the license notices in accordion.js.
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.0
+
+- Add per-post-type editor choices for List and maps. Saved patterns, Etch components, templates, and template parts keep both editor shortcuts where available.
+- Include editor preferences in settings transfer and keep older exports compatible.
+- Open Settings in a floating panel beside the navigation. Keep sidebar icons available when collapsed and show tooltips on hover or keyboard focus.
+- Add a browser-local text size control from 100% to 200%.
+- Batch Site map taxonomy lookups, load posts and terms in parallel, and keep graph highlighting steady during pointer movement.
+
 ## 2.0.1
 
 - Keep large item-map connection groups compact with five-card paging, independent search, and full relationship totals.

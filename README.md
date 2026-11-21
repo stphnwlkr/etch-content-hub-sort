@@ -42,9 +42,13 @@ Select a Site entry and choose View connections to inspect that record in the Se
 
 ## Settings and transfer
 
+Open **Settings > Editors** to choose **Etch and WordPress**, **WordPress only**, or **Etch only** for each post type. Each row shows the active choice in List, Current item maps, and the Site map. Post types that support Etch start with both editors. Other post types show WordPress only. Saved patterns, Etch components, templates, and template parts keep both editor shortcuts when available. WordPress permissions still apply.
+
+**General > Appearance > Text size** adjusts Content Explorer text from 100% to 200% and remembers the choice in the current browser.
+
 Settings includes initial post and taxonomy sorting, action placement, button appearance, active sort heading colors, hierarchy styling, and status colors. Status groups have separate background and text controls, previews, and reset actions. Text colors must meet 4.5:1 contrast. Custom hierarchy borders and carets must meet 3:1 contrast against their rows.
 
-Settings transfer exports the saved site preferences to JSON and imports them on another site. Imports validate the full document before replacing settings, including colors and supported values. Only administrators who can manage site options can transfer settings. Export a backup before replacing a destination's preferences, and reload Etch after importing.
+Settings transfer exports the saved site preferences, including editor choices, to JSON and imports them on another site. Imports validate the full document before replacing settings, including colors and supported values. Only administrators who can manage site options can transfer settings. Export a backup before replacing a destination's preferences, and reload Etch after importing.
 
 Exports do not include content, credentials, site URLs, update caches, or browser-local menu and column preferences. Older exports remain compatible.
 

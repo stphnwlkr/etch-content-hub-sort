@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 2.0.1
+Stable tag: 2.1.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -22,7 +22,7 @@ The Site graph includes public content types, their entries, and their taxonomie
 
 Taxonomy terms have a browse table with Name, Slug, Description, Count, and Parent where applicable. Search, sorting, and pagination work across all terms. A separate setting chooses the initial taxonomy sort column and direction. Hierarchical taxonomies can be browsed as a tree, and flat search results identify each child's parent. New term and Quick edit let you set the name, slug, description, and parent. Delete permanently removes a term after confirmation. WordPress moves its children up one level. Terms do not have WordPress drafts or Trash.
 
-The Settings transfer tab exports all saved plugin settings to a JSON file and imports a complete export on another site. It includes general preferences, sorting defaults, button appearance, hierarchy styling, and status colors. Import replaces the destination site's plugin settings after validating every setting, including color contrast. Export a backup first if needed, then choose the file, confirm replacement, and select Import settings. Reload the builder after importing. Only administrators who can manage site options can transfer settings. Content, credentials, site URLs, and update caches are not included.
+The Settings transfer tab exports all saved plugin settings to a JSON file and imports a complete export on another site. It includes general preferences, editor choices, sorting defaults, button appearance, hierarchy styling, and status colors. Import replaces the destination site's plugin settings after validating every setting, including color contrast. Export a backup first if needed, then choose the file, confirm replacement, and select Import settings. Reload the builder after importing. Only administrators who can manage site options can transfer settings. Content, credentials, site URLs, and update caches are not included.
 
 The Status colors section has its own settings tab. Set background and text colors separately for Published, Draft, Scheduled, Pending Review, and Private, plus one shared pair for all third-party statuses. The existing colors are the defaults. Each group has a preview and a Use default colors action; click Save to apply changes. Text colors must meet 4.5:1 contrast. Saved colors apply to badges and the status picker.
 
@@ -30,7 +30,7 @@ The Hierarchy section can customize parent and child row backgrounds, text, left
 
 The browse table also has a New item button with Draft or Published status. For hierarchical content types, choose a parent while creating an item. Each existing item has Quick edit for changing its title, slug, date, status, and, for hierarchical types, its parent. If both title and slug were blank, entering a title suggests a slug; WordPress generates the saved slug unless the user edits that suggestion. Date and time use the site's timezone; WordPress schedules published items with future dates. Quick edit offers Published, Scheduled, Private, Pending Review, Draft, and registered custom workflow statuses permitted for the current user. It honors the WordPress quick_edit_statuses filter. The parent picker searches the full content type. WordPress permissions control which actions appear and which changes are accepted.
 
-An Edit with WP button opens editable posts and pages in WordPress. It opens the WordPress editor in a new tab, including custom fields available there. Term rows also link to the WordPress term editor. The Table setting can hide these buttons; they are shown by default and only appear for items the user may edit.
+An Edit with WP button opens editable posts and pages in the WordPress editor in a new tab, including custom fields available there. Settings > Editors shows and controls the active shortcut choice per post type in List and Map. WordPress editor links for taxonomy terms in List follow the Table preference.
 
 Hierarchical content types, such as Pages, open in a parent and child view. Expand a parent to load its children, or use the Open all / Close all control for every branch on the current page. Large branches have a Load more children control. Sorting applies within each level, while the main pagination counts top-level items. The Hierarchy button switches between the tree and flat list. Hierarchy controls appear only in the browse table. Search results appear as a flat list so matches at every depth remain visible; child results name their parent.
 
@@ -61,6 +61,14 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 2.1.0 =
+
+* Choose Etch, WordPress, or both per post type under Settings > Editors. List and Map use those preferences, and shared patterns, components, and templates keep both editors.
+* Add a browser-local text size control from 100% to 200%.
+* Show Settings in a floating panel and keep sidebar icons available when the menu collapses, with tooltips on hover and keyboard focus.
+* Batch Site map taxonomy lookups and load posts and terms in parallel.
+* Keep the Site map’s current item marker steady and prevent nodes passing under the pointer from dimming the whole graph.
 
 = 2.0.1 =
 
