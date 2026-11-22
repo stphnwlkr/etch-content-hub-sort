@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.2
+
+- Keep the Content Explorer icon separate from the SureRank logo and SEO status indicator when Etch loads both shortcuts together.
+
+## 2.1.1
+
+- Keep Content Explorer and Current item shortcuts attached to their own buttons when several Etch extensions render controls together.
+
 ## 2.1.0
 
 - Add per-post-type editor choices for List and maps. Saved patterns, Etch components, templates, and template parts keep both editor shortcuts where available.

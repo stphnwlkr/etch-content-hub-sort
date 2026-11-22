@@ -166,6 +166,7 @@
   const sidebarIconDefinition = name => {
     const source = new DOMParser().parseFromString(config.sidebarIcons[name], 'image/svg+xml').documentElement;
     const artwork = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    artwork.setAttribute('data-etch-hub-shortcut', name);
     for (const attribute of ['fill', 'stroke', 'stroke-width']) {
       if (source.hasAttribute(attribute)) artwork.setAttribute(attribute, source.getAttribute(attribute));
     }
@@ -179,7 +180,7 @@
     if (!top) return;
     // Etch 1.8's native button has no label or stable ID. Identify its file-01 artwork,
     // never its position, so other extensions' buttons cannot be hidden accidentally.
-    const native = [...top.querySelectorAll('button')].find(node =>
+    const native = [...top.querySelectorAll('button:not(:has([data-etch-hub-shortcut]))')].find(node =>
       node.getAttribute('aria-label') === 'Content Hub' ||
       (node.querySelector('svg path[d="M7.99976 7H15.9998"]') && node.querySelector('svg path[d="M20 15H15C13.8954 15 13 15.8954 13 17V22"]')));
     if (native) {
@@ -1520,7 +1521,7 @@
       const controls = window.etchControls?.builder?.settingsBar;
       const top = document.querySelector('.settings-bar__section.top');
       const bottom = document.querySelector('.settings-bar__section.bottom');
-      if (!controls?.top || !controls?.bottom || !top?.querySelector('button') || !bottom) {
+      if (!controls?.top || !controls?.bottom || !top || !bottom) {
         if (++attempts > 120) window.clearInterval(addToSettingsBar);
         return;
       }
@@ -1528,22 +1529,34 @@
       syncNativeContentHub();
       new MutationObserver(syncNativeContentHub).observe(top, { childList: true, subtree: true });
       const register = (api, bar, id, tooltip, className, property, section) => {
-        const before = new Set(bar.querySelectorAll('button'));
-        const observer = new MutationObserver(() => {
-          const trigger = [...bar.querySelectorAll('button')].find(node => !before.has(node));
-          if (!trigger) return;
-          observer.disconnect();
+        const icon = section === 'map' ? 'connections' : 'content';
+        const bindTrigger = () => {
+          // Extensions may render several sidebar buttons in a single update.
+          const trigger = bar.querySelector(`[data-etch-hub-shortcut="${icon}"]`)?.closest('button');
+          if (!trigger || trigger === settingsManager[property]) return;
           trigger.setAttribute('aria-label', tooltip);
           trigger.setAttribute('aria-controls', panel.id);
           trigger.classList.add(className);
           settingsManager[property] = trigger;
           syncSidebarActiveState();
           syncSidebarShortcut();
-        });
-        observer.observe(bar, { childList: true, subtree: true });
-        api.addBefore({ id, icon: sidebarIconDefinition(section === 'map' ? 'connections' : 'content'), tooltip, callback: () => toggleSidebarView(section) });
+        };
+        new MutationObserver(bindTrigger).observe(bar, { childList: true, subtree: true });
+        api.addBefore({ id, icon: sidebarIconDefinition(icon), tooltip, callback: () => toggleSidebarView(section) });
+        bindTrigger();
       };
-      register(controls.top, top, 'etch-hub-sort-settings', __('Content Explorer', 'etch-content-hub-sort'), 'etch-hub-sort-bar-trigger', 'trigger', 'list');
+      const sureRankWaitUntil = Date.now() + 5000;
+      const registerExplorer = () => {
+        // SureRank finds its button by comparing the top section's children after adding its control.
+        // Let it finish decorating that button before inserting Explorer ahead of it.
+        if (controls.top.after?.some(control => control.id === 'surerank-seo') &&
+            !top.querySelector('.surerank-builder-logo') && Date.now() < sureRankWaitUntil) {
+          window.setTimeout(registerExplorer, 100);
+          return;
+        }
+        register(controls.top, top, 'etch-hub-sort-settings', __('Content Explorer', 'etch-content-hub-sort'), 'etch-hub-sort-bar-trigger', 'trigger', 'list');
+      };
+      registerExplorer();
       register(controls.bottom, bottom, 'etch-current-page-connections', __('Current item connections', 'etch-content-hub-sort'), 'etch-page-connections-trigger', 'connectionsTrigger', 'map');
       top.closest('.settings-bar').addEventListener('click', event => {
         const target = event.target.closest('button');
