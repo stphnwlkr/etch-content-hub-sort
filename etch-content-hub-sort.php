@@ -2,9 +2,9 @@
 /**
  * Plugin Name: Content Explorer for Etch
  * Description: Browse, search, edit, and map content and shared resources in a dedicated Etch panel.
- * Version: 2.1.2
- * Requires at least: 5.9
- * Requires PHP: 8.1
+ * Version: 2.2.0
+ * Requires at least: 7.1
+ * Requires PHP: 8.3
  * Update URI: https://github.com/stphnwlkr/etch-content-hub-sort
  * Author: Stephen Walker
  * License: GPLv3 or later
@@ -20,6 +20,7 @@ require_once __DIR__ . '/includes/github-updates.php';
 require_once __DIR__ . '/includes/statuses.php';
 require_once __DIR__ . '/includes/settings-transfer.php';
 require_once __DIR__ . '/includes/connections.php';
+require_once __DIR__ . '/includes/relationships.php';
 require_once __DIR__ . '/includes/editor-access.php';
 
 /** Return the saved layout, including the earlier start/end switch. */
@@ -872,7 +873,7 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '2.1.2';
+		$version = '2.2.0';
 		$types   = array();
 		$hierarchical_types = array();
 		$taxonomies = array();

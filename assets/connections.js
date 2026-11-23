@@ -3,6 +3,8 @@
   const config = window.etchHubSortConfig;
   if (!config?.connectionsEndpoint) return;
   const { __, _n, sprintf } = window.wp.i18n;
+  const incomingRelationships = __('Incoming relationships','etch-content-hub-sort');
+  const outgoingRelationships = __('Outgoing relationships','etch-content-hub-sort');
   const el = (tag, cls = '', text) => { const n = document.createElement(tag); n.className = cls; if (text !== undefined) n.textContent = text; return n; };
   const button = (text, click, cls = 'btn') => { const n = el('button', cls, text); n.type = 'button'; n.addEventListener('click', click); return n; };
   const svg = (tag, attrs, parent) => { const n = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const [k,v] of Object.entries(attrs)) n.setAttribute(k,v); parent?.append(n); return n; };
@@ -73,8 +75,11 @@
       card.append(row(__('Content type','etch-content-hub-sort'),data.center.type),row(__('Path','etch-content-hub-sort'),data.center.path||__('No public URL','etch-content-hub-sort')),row(__('Status','etch-content-hub-sort'),config.statusLabels?.[data.center.status]||data.center.status));
       card.append(row(__('Linked from','etch-content-hub-sort'),sprintf(_n('%d item','%d items',data.from.length||0,'etch-content-hub-sort'),data.from.length)),row(__('Links to','etch-content-hub-sort'),sprintf(_n('%d item','%d items',data.to.length||0,'etch-content-hub-sort'),data.to.length)),row(__('Uses','etch-content-hub-sort'),sprintf(_n('%d shared part','%d shared parts',data.uses.length||0,'etch-content-hub-sort'),data.uses.length)));
       if(data.used_by?.length || data.center.kind==='shared') card.append(row(__('Used by','etch-content-hub-sort'),sprintf(_n('%d item','%d items',data.used_by?.length||0,'etch-content-hub-sort'),data.used_by?.length||0)));
+      if(data.related_to?.length) card.append(row(outgoingRelationships,String(data.related_to.length)));
+      if(data.related_from?.length) card.append(row(incomingRelationships,String(data.related_from.length)));
       details.append(card,actions(data.center,card),el('p','gd-hint',__('Click a card in the graph to see its details. Esc or the connections icon returns to the editor.','etch-content-hub-sort')));
       if(data.truncated)details.append(el('p','gd-hint',__('This map is limited to 500 incoming connections and 100 nested shared resources. Some relationships are omitted.','etch-content-hub-sort')));
+      if(data.relationships_truncated)details.append(el('p','gd-hint',__('The map shows up to 500 related posts in each direction.','etch-content-hub-sort')));
       for(const node of root.querySelectorAll('.gnode')) node.setAttribute('aria-pressed','false');
     }
     function pageSelect(node,relation,selected){
@@ -83,6 +88,7 @@
       const head=el('div','section-label has-action');head.append(el('span','',__('Selected','etch-content-hub-sort')),button(__('Clear','etch-content-hub-sort'),pageSummary,'btn clear'));
       const card=titleCard(node.title,node.kind==='shared'?'var(--delta-shared)':'var(--delta-muted)');
       card.append(row(__('Type','etch-content-hub-sort'),node.type),row(__('Path','etch-content-hub-sort'),node.path||__('No public URL','etch-content-hub-sort')),row(__('Status','etch-content-hub-sort'),config.statusLabels?.[node.status]||node.status),row(__('Connection','etch-content-hub-sort'),relation));
+      for(const relationship of node.relationships||[]) card.append(row(__('Relationship','etch-content-hub-sort'),relationship));
       details.replaceChildren(head,card,actions(node,card));
     }
     function pageCard(node,relation,here=false){const n=button('',()=>pageSelect(node,relation,n),`gnode ${here?'here':node.kind==='shared'?'shared':'page'}`);n.append(el('b','',node.title),el('span','',here?sprintf(node.id===editorItemId?__('Current item · ID %d','etch-content-hub-sort'):__('Selected item · ID %d','etch-content-hub-sort'),node.id):node.kind==='shared'?node.type:node.path||node.type));n.setAttribute('aria-label',node.title);n.title=__('Show details','etch-content-hub-sort');n.setAttribute('aria-pressed','false');return n;}
@@ -103,8 +109,8 @@
         const range=el('span','connection-group-range');range.setAttribute('role','status');
         const previous=button('‹',()=>{page--;render();},'btn');
         const next=button('›',()=>{page++;render();},'btn');
-        previous.setAttribute('aria-label',sprintf(__('Previous %s items','etch-content-hub-sort'),label));
-        next.setAttribute('aria-label',sprintf(__('Next %s items','etch-content-hub-sort'),label));
+        previous.setAttribute('aria-label',__('Previous page','etch-content-hub-sort'));
+        next.setAttribute('aria-label',__('Next page','etch-content-hub-sort'));
         pager.append(previous,range,next);
         if(nodes.length>pageSize){
           searchField=el('input','connection-group-search');searchField.type='search';
@@ -117,7 +123,7 @@
         section.append(cards);
         if(nodes.length>pageSize)section.append(pager);
         function render(){
-          const matches=nodes.filter(node=>!query||[node.title,node.path,node.type,node.id].join(' ').toLocaleLowerCase().includes(query));
+          const matches=nodes.filter(node=>!query||[node.title,node.path,node.type,node.id,...(node.relationships||[])].join(' ').toLocaleLowerCase().includes(query));
           const pages=Math.max(1,Math.ceil(matches.length/pageSize));page=Math.max(0,Math.min(page,pages-1));
           groupStates.set(stateKey,{page,query});
           cards.replaceChildren(...matches.slice(page*pageSize,(page+1)*pageSize).map(node=>pageCard(node,label)));
@@ -131,7 +137,9 @@
       const center=el('div','gcol center');center.append(pageCard(data.center,'',true));
       const incoming=el('div','gcol from');incoming.append(group('from',__('Linked from','etch-content-hub-sort')));
       if(data.used_by?.length||data.center.kind==='shared')incoming.append(group('used_by',__('Used by','etch-content-hub-sort')));
+      if(data.related_from?.length)incoming.append(group('related_from',incomingRelationships));
       const outgoing=el('div','gcol to');outgoing.append(group('to',__('Links to','etch-content-hub-sort')));
+      if(data.related_to?.length)outgoing.append(group('related_to',outgoingRelationships));
       const uses=el('div','gcol uses row');uses.append(group('uses',__('Uses','etch-content-hub-sort')));
       center.append(uses);grid.append(incoming,center,outgoing);canvas.append(grid);stage.replaceChildren(canvas);
       legend.replaceChildren();for(const [cls,text]of [['here',mappedItemId===editorItemId?__('Current item','etch-content-hub-sort'):__('Selected item','etch-content-hub-sort')],['page',__('Content item','etch-content-hub-sort')],['shared',__('Shared (template, component)','etch-content-hub-sort')]]){const item=el('span');item.append(el('i',`dot ${cls}`),document.createTextNode(text));legend.append(item);}
@@ -143,7 +151,7 @@
       mappedItemId=id;
       pageTab.textContent=id===editorItemId?__('Current item','etch-content-hub-sort'):__('Selected item','etch-content-hub-sort');
       const request=begin('page');
-      try{while(true){data=await fetchData(id,request.signal);if(!alive||request.seq!==sequence)return;if(!data.indexing)break;status(__('Building the link index…','etch-content-hub-sort'));}
+      try{while(true){data=await fetchData(id,request.signal);if(!alive||request.seq!==sequence)return;if(!data.indexing&&!data.relationships_indexing)break;status(data.indexing?__('Building the link index…','etch-content-hub-sort'):__('Indexing related posts…','etch-content-hub-sort'));}
       renderPage();}catch(error){if(error.name!=='AbortError'&&request.seq===sequence)status(error.message);}
     }
     function siteSummary(){

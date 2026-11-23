@@ -1,3 +1,5 @@
-## Content Explorer for Etch 2.1.2
+## Content Explorer for Etch 2.2.0
 
-Content Explorer waits for SureRank to finish setting up its Etch shortcut when both load together. Explorer keeps its own icon, and SureRank displays its logo and SEO status indicator on its own button. Explorer also identifies its own shortcuts when several extensions add buttons together.
+The Current item map shows saved post relationships from ACF Relationship and Post Object fields, Meta Box Post fields, and MB Relationships. **Incoming relationships** show which posts reference the selected item. **Outgoing relationships** show which posts it references. Select a card to see the field or relationship name.
+
+Requires WordPress 7.1 and PHP 8.3 or later. Compatibility checked with WordPress 7.2 RC2.

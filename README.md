@@ -26,6 +26,8 @@ Taxonomy lists support search, sorting, pagination, hierarchy, creation, and qui
 
 An item map places the chosen record in the center, with incoming links, outgoing links, and shared resources around it. Templates, template parts, patterns, Etch components, and saved navigation references appear where the saved content provides those relationships. The index also includes Etch's resolved saved template and reverse shared-resource usage.
 
+Saved selections from ACF Relationship and Post Object fields, Meta Box Post fields, and MB Relationships appear under **Incoming relationships** when another item references the selected item, and under **Outgoing relationships** when the selected item references another item. Select a card to see the field or relationship name. The first item map on a site with supported fields indexes existing selections in batches so reverse connections appear without resaving each post.
+
 Large connection groups show five cards at a time, with independent search, paging, and full totals. Search checks every loaded item in that group.
 
 Select a card to inspect its content type, path, status, and available actions. View connections opens the selected card's own map; Previous item returns through the maps you have explored. Edit with Etch, Edit with WP, and View on site appear only where supported and permitted. Internal resources identify that they have no public URL. Shared-resource maps show which items use that resource.
@@ -54,13 +56,15 @@ Exports do not include content, credentials, site URLs, update caches, or browse
 
 ## Map scope and limits
 
-Maps read saved WordPress and Etch block content without executing blocks, loops, shortcodes, or custom code. They resolve literal local links, saved shared references, and supported template assignments. They do not evaluate dynamic URLs, arbitrary runtime query results, third-party field relationships, unsaved editor changes, classic menu membership, or theme-file-only resources. An empty connection group is not proof that a rendered page has no links.
+Maps read saved WordPress and Etch block content without executing blocks, loops, or shortcodes. They resolve literal local links, saved shared references, and supported template assignments. Dynamic URLs, automatically queried related posts, unsaved editor changes, classic menu membership, and theme-file-only resources are outside the map's scope.
+
+To integrate another source of saved post relationships, use the `etch_hub_sort_post_relationships` filter. It receives an array and the source `WP_Post`. Return target post IDs as array keys with an array of field or relationship labels per ID. The callback runs during indexing as well as map requests, so read saved values and keep lookups scoped to the source post. Use `Etch_Hub_Relationships::invalidate()` when changing relationships outside normal post or post-meta saves so reverse connections are rebuilt.
 
 Indexing and Site graph loading use batches. Saving content updates its relationships; template, permalink, and identity changes trigger reindexing. Earlier map indexes migrate automatically. Item maps show a notice when they reach their 500 incoming-relationship or 100 nested-resource processing limit. Only editable records and permitted relationships are returned to the current user.
 
 ## Install and update
 
-Requires WordPress 5.9+, PHP 8.1+, and an active Etch installation. Upload the release ZIP through Plugins > Add New > Upload Plugin, then activate it. The builder integration uses Etch's current interface and may need a compatibility update when Etch changes it.
+Requires WordPress 7.1+, PHP 8.3+, and an active Etch installation. Tested with WordPress 7.2 RC2. Upload the release ZIP through Plugins > Add New > Upload Plugin, then activate it. The builder integration uses Etch's current interface and may need a compatibility update when Etch changes it.
 
 The plugin's display name is Content Explorer for Etch. Its directory, text domain, REST namespace, and GitHub update identity remain `etch-content-hub-sort`. Install the update over the existing plugin rather than renaming its directory. Existing site settings remain in place.
 

@@ -30,6 +30,10 @@ delete_option( 'etch_hub_map_cursor_v1' );
 delete_option( 'etch_hub_map_lock' );
 delete_post_meta_by_key( '_etch_hub_map_link' );
 delete_post_meta_by_key( '_etch_hub_map_uses' );
+delete_post_meta_by_key( '_etch_hub_map_related' );
+delete_option( 'etch_hub_relationship_cursor' );
+delete_option( 'etch_hub_relationship_providers' );
+delete_option( 'etch_hub_relationship_lock' );
 
 delete_option( 'etch_hub_sort_panel_default_view' );
 

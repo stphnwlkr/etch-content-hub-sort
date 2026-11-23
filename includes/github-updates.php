@@ -79,8 +79,9 @@ add_filter(
 			'version'      => $release['version'],
 			'url'          => $release['url'],
 			'package'      => $release['package'],
-			'requires'     => '5.9',
-			'requires_php' => '8.1',
+			'requires'     => '7.1',
+			'requires_php' => '8.3',
+			'tested'       => '7.2',
 		);
 	},
 	10,
@@ -107,8 +108,9 @@ add_filter(
 			'author'        => 'Stephen Walker',
 			'homepage'      => 'https://github.com/stphnwlkr/etch-content-hub-sort',
 			'download_link' => $release['package'],
-			'requires'      => '5.9',
-			'requires_php'  => '8.1',
+			'requires'      => '7.1',
+			'requires_php'  => '8.3',
+			'tested'        => '7.2',
 			'sections'      => array(
 				'description' => '<p>Browse, edit, and map content and shared resources in a dedicated Etch panel.</p>',
 				'changelog'   => '' !== $release['notes'] ? wpautop( esc_html( $release['notes'] ) ) : '<p>See the GitHub release for changes.</p>',

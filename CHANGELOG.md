@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.0
+
+- Show related posts in both directions in the Current item map, with field and relationship labels. Supports ACF Relationship and Post Object fields, Meta Box Post fields, and MB Relationships.
+- Raise the minimum requirements to WordPress 7.1 and PHP 8.3.
+
 ## 2.1.2
 
 - Keep the Content Explorer icon separate from the SureRank logo and SEO status indicator when Etch loads both shortcuts together.

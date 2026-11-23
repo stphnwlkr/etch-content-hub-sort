@@ -1,10 +1,10 @@
 === Content Explorer for Etch ===
 Contributors: stephenwalker
 Tags: etch, content hub, search, sort, pagination
-Requires at least: 5.9
-Tested up to: 7.1
-Requires PHP: 8.1
-Stable tag: 2.1.2
+Requires at least: 7.1
+Tested up to: 7.2
+Requires PHP: 8.3
+Stable tag: 2.2.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -61,6 +61,10 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 2.2.0 =
+* Show saved ACF and Meta Box post relationships in Current item maps, including reverse connections and field names.
+* Require WordPress 7.1 and PHP 8.3.
 
 = 2.1.2 =
 * Prevent SureRank's logo and SEO status indicator from replacing the Content Explorer icon during Etch startup.

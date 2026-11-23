@@ -66,6 +66,9 @@ $release = array(
 $response = array( 'code' => 200, 'body' => json_encode( $release ) );
 $update   = $hooks['update_plugins_github.com']( false, array( 'Version' => '1.7.6' ), 'etch-content-hub-sort/etch-content-hub-sort.php' );
 assert_same( '1.7.7', $update['version'] );
+assert_same( '7.1', $update['requires'] );
+assert_same( '8.3', $update['requires_php'] );
+assert_same( '7.2', $update['tested'] );
 assert_same( 'https://github.com/stphnwlkr/etch-content-hub-sort/releases/download/v1.7.7/etch-content-hub-sort-1.7.7.zip', $update['package'] );
 assert_same( 1, $requests );
 $hooks['update_plugins_github.com']( false, array(), 'other/other.php' );
@@ -74,6 +77,9 @@ $hooks['update_plugins_github.com']( false, array(), 'etch-content-hub-sort/etch
 assert_same( 1, $requests );
 $details = $hooks['plugins_api']( false, 'plugin_information', (object) array( 'slug' => 'etch-content-hub-sort' ) );
 assert_same( '1.7.7', $details->version );
+assert_same( '7.1', $details->requires );
+assert_same( '8.3', $details->requires_php );
+assert_same( '7.2', $details->tested );
 assert_same( false, str_contains( $details->sections['changelog'], '<script>' ) );
 
 foreach ( array( 'prerelease', 'missing_asset', 'wrong_tag' ) as $case ) {

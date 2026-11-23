@@ -233,7 +233,9 @@ final class Etch_Hub_Connections {
 		}
 		$from = $incoming( self::LINK );
 		$used_by = $incoming( self::USES );
-		return rest_ensure_response( array( 'truncated' => count( $from ) > 500 || count( $used_by ) > 500 || count( $queue ) > 100, 'center' => $center, 'from' => $nodes( array_slice( $from, 0, 500 ) ), 'to' => $nodes( array_diff( $to, array( $id ) ) ), 'uses' => $nodes( array_diff( $uses, array( $id ) ) ), 'used_by' => $nodes( array_slice( $used_by, 0, 500 ) ), 'indexing' => ! $done ) );
+		$relationships_done = Etch_Hub_Relationships::batch();
+		$relationships = $relationships_done ? Etch_Hub_Relationships::for_post( get_post( $id ) ) : array();
+		return rest_ensure_response( array_merge( array( 'truncated' => count( $from ) > 500 || count( $used_by ) > 500 || count( $queue ) > 100, 'center' => $center, 'from' => $nodes( array_slice( $from, 0, 500 ) ), 'to' => $nodes( array_diff( $to, array( $id ) ) ), 'uses' => $nodes( array_diff( $uses, array( $id ) ) ), 'used_by' => $nodes( array_slice( $used_by, 0, 500 ) ), 'indexing' => ! $done, 'relationships_indexing' => ! $relationships_done ), $relationships ) );
 	}
 }
 add_action( 'save_post', array( 'Etch_Hub_Connections', 'index' ), 30 );
