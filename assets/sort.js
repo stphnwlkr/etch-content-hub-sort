@@ -1287,6 +1287,7 @@
     const addSidebarTooltip = (owner, label, triggerSelector) => {
       const eventTrigger = event => triggerSelector ? event.composedPath().find(node => node.matches?.(triggerSelector)) : owner;
       const show = target => {
+        if (!panel.classList.contains('is-menu-collapsed')) return;
         clearTimeout(tooltipExit);
         tooltipTrigger = target;
         sidebarTooltip.textContent = typeof label === 'function' ? label() : label;

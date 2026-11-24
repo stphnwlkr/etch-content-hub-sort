@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 7.1
 Tested up to: 7.2
 Requires PHP: 8.3
-Stable tag: 2.2.0
+Stable tag: 2.2.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -61,6 +61,14 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 2.2.1 =
+- Show sidebar tooltips only when the menu is collapsed.
+- Normalize wheel and trackpad zoom by scroll distance, with a smaller maximum change per animation frame.
+- Make the map focusable with + / - shortcuts and retain native keyboard-operable zoom buttons.
+- Add Reset view to clear selection, search and filters, restore display defaults and opening node positions, and fit the full map.
+- Increase map labels and details text; give map controls and related-item actions visible button styling.
+
 
 = 2.2.0 =
 * Show saved ACF and Meta Box post relationships in Current item maps, including reverse connections and field names.

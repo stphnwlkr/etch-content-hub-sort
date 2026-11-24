@@ -1036,3 +1036,24 @@
 .etch-delta-map .gcol.center .gcol.uses { width: 200px; }
 .etch-delta-map .gcol.center .gcol.uses .connection-group { width: 200px; }
 .etch-delta-map .gcol.center .gcol.uses .connection-group-cards { flex-direction: column; }
+
+/* Keep map labels and actions legible at the default interface size. */
+.etch-delta-map .delta-graph-label { font-size: calc(.75rem * var(--etch-explorer-text-scale, 1)); }
+.etch-delta-map .delta-graph-label--big { font-size: calc(.875rem * var(--etch-explorer-text-scale, 1)); }
+.etch-delta-map :is(.btn, .delta-graph-tool--wide, .delta-graph-stage .delta-graph-chip, .delta-graph-switch, .gd-rel button) { font-size: calc(.8125rem * var(--etch-explorer-text-scale, 1)); }
+.etch-delta-map :is(.gd-sub, .gd-desc, .gd-hint, .gd-row, .site-hint, .gd-rel h4) { font-size: calc(.8125rem * var(--etch-explorer-text-scale, 1)); }
+.etch-delta-map :is(.btn, .delta-graph-tool, .delta-graph-chip, .delta-graph-switch, .gd-rel button) {
+  min-height: 34px;
+  border: 1px solid color-mix(in srgb, var(--delta-fg) 30%, var(--delta-panel));
+  border-radius: 6px;
+  background: var(--delta-panel-soft);
+  color: var(--delta-fg);
+  cursor: pointer;
+}
+.etch-delta-map .btn.primary { background: var(--delta-accent); border-color: var(--delta-accent); }
+.etch-delta-map .delta-graph-tools { gap: 6px; flex-wrap: wrap; max-width: calc(100% - 36px); padding: 6px; border: 1px solid var(--delta-border); border-radius: 8px; background: var(--delta-panel); }
+.etch-delta-map .delta-graph-tool { min-width: 36px; height: 36px; }
+.etch-delta-map .delta-graph-stage :is(.delta-graph-chip, .delta-graph-switch) { padding: 5px 9px; }
+.etch-delta-map :is(.btn, .delta-graph-tool, .delta-graph-chip, .delta-graph-switch, .gd-rel button):hover { border-color: var(--delta-accent); background: color-mix(in srgb, var(--delta-accent) 14%, var(--delta-panel)); }
+.etch-delta-map .gd-rel button { width: 100%; margin: 4px 0; padding: 7px 9px; }
+.etch-delta-map .delta-graph-svg:focus-visible { outline: 2px solid var(--delta-accent); outline-offset: -3px; }

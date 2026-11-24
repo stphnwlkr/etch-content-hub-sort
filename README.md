@@ -38,7 +38,7 @@ The current editor document and the selected map item are distinct. Exploring a 
 
 The Site graph groups public content types and entries with their taxonomies and terms. It shows content links, shared usage between visible entries, type membership, term assignments, and hierarchy relationships. Nonpublic content types and internal shared resources remain available through List and item maps.
 
-The graph fits on opening. Drag nodes, pan and zoom the graph, use Fit to recenter it, and use its filters and display controls to focus the view. Search hides connection lines unrelated to matching items. The X beside Find clears the search while keeping the map open.
+The graph fits on opening. Drag nodes, pan and zoom the graph, use Fit to recenter it or Reset view to clear selections, search, and filters and restore the full map, and use its filters and display controls to focus the view. Search hides connection lines unrelated to matching items. The X beside Find clears the search while keeping the map open.
 
 Select a Site entry and choose View connections to inspect that record in the Selected item map. Switch between Site and Selected item without changing the editor document. Details sit in a separate rounded panel beside the graph.
 

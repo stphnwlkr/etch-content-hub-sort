@@ -157,7 +157,7 @@
     function siteSummary(){
       details.replaceChildren(el('div','section-label',__('Site','etch-content-hub-sort')));const card=titleCard(siteName,'var(--delta-ok)',__('On the map','etch-content-hub-sort'));
       for(const [label,kind]of [[__('Post types','etch-content-hub-sort'),'type'],[__('Entries','etch-content-hub-sort'),'post'],[__('Terms','etch-content-hub-sort'),'term']])card.append(row(label,siteData.nodes.filter(n=>n.kind===kind).length));card.append(row(__('Links in content','etch-content-hub-sort'),siteData.edges.filter(e=>e.kind==='link').length));
-      details.append(card,el('p','gd-hint',__('Shows public content types. Find nonpublic items and shared resources in List.','etch-content-hub-sort')),el('p','gd-hint',__('The ringed dot is the editor item. Click a dot to see its details. Scroll to zoom, drag to move. Esc returns to the editor.','etch-content-hub-sort')));
+      details.append(card,el('p','gd-hint',__('Shows public content types. Find nonpublic items and shared resources in List.','etch-content-hub-sort')),el('p','gd-hint',__('The ringed dot is the editor item. Click a dot to see its details. Scroll to zoom, drag to move. Use Tab to reach the zoom buttons, then Enter or Space. Reset view restores the full map. Esc returns to the editor.','etch-content-hub-sort')));
     }
     function siteSelected(node){
       if(!node){siteSummary();return;}const head=el('div','section-label has-action');head.append(el('span','',__('Selected','etch-content-hub-sort')),button(__('Clear','etch-content-hub-sort'),()=>engine.select(null),'btn clear'));
@@ -170,9 +170,9 @@
     }
     function renderSite(){
       stage.className='delta-graph-stage site-stage';stage.dataset.graph='stage';stage.replaceChildren();
-      const graphic=svg('svg',{class:'delta-graph-svg','data-graph':'svg',role:'img','aria-label':__('Site map','etch-content-hub-sort')},stage),view=svg('g',{'data-graph':'view'},graphic);
+      const graphic=svg('svg',{class:'delta-graph-svg','data-graph':'svg',tabindex:'0',role:'group','aria-label':__('Site map','etch-content-hub-sort')},stage),view=svg('g',{'data-graph':'view'},graphic);
       for(const layer of ['edges','nodes','map','agent']){const g=svg('g',{'data-graph':layer},view);if(['map','agent'].includes(layer))g.style.display='none';}
-      const tools=el('div','delta-graph-tools');for(const [key,label,text]of [['zoom-in',__('Zoom in','etch-content-hub-sort'),'+'],['zoom-out',__('Zoom out','etch-content-hub-sort'),'−'],['fit',__('Fit','etch-content-hub-sort'),__('Fit','etch-content-hub-sort')]]){const b=button(text,()=>{},`delta-graph-tool${key==='fit'?' delta-graph-tool--wide':''}`);b.dataset.graph=key;b.setAttribute('aria-label',label);tools.append(b);}stage.append(tools);
+      const tools=el('div','delta-graph-tools');tools.setAttribute('role','group');tools.setAttribute('aria-label',__('Map controls','etch-content-hub-sort'));for(const [key,label,text]of [['zoom-in',__('Zoom in','etch-content-hub-sort'),'+'],['zoom-out',__('Zoom out','etch-content-hub-sort'),'−'],['fit',__('Fit map to view','etch-content-hub-sort'),__('Fit','etch-content-hub-sort')],['reset',__('Reset view','etch-content-hub-sort'),__('Reset view','etch-content-hub-sort')]]){const b=button(text,()=>{},`delta-graph-tool${['fit','reset'].includes(key)?' delta-graph-tool--wide':''}`);b.dataset.graph=key;b.setAttribute('aria-label',label);b.title=label;tools.append(b);}stage.append(tools);
       for(const part of ['filters','legend']){const block=el('div',`delta-graph-${part}`);block.dataset.graph=part;block.setAttribute('role','group');block.setAttribute('aria-label',part==='filters'?__('Show or hide groups','etch-content-hub-sort'):__('Graph display','etch-content-hub-sort'));stage.append(block);}
       cacheKey=location.origin+':'+siteData.nodes.map(n=>n.id).join(',');
       engine=window.etchHubDeltaGraph(root,siteData,null,'graph',{here:`post:${editorItemId}`,layout:layouts.get(cacheKey),fitOnOpen:true,keys:false,onSelect:siteSelected});siteSummary();

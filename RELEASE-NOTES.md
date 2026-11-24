@@ -1,5 +1,9 @@
-## Content Explorer for Etch 2.2.0
+## Content Explorer for Etch 2.2.1
 
-The Current item map shows saved post relationships from ACF Relationship and Post Object fields, Meta Box Post fields, and MB Relationships. **Incoming relationships** show which posts reference the selected item. **Outgoing relationships** show which posts it references. Select a card to see the field or relationship name.
+- Show sidebar tooltips only when the menu is collapsed.
+- Normalize wheel and trackpad zoom by scroll distance, with a smaller maximum change per animation frame.
+- Make the map focusable with + / - shortcuts and retain native keyboard-operable zoom buttons.
+- Add Reset view to clear selection, search and filters, restore display defaults and opening node positions, and fit the full map.
+- Increase map labels and details text; give map controls and related-item actions visible button styling.
 
-Requires WordPress 7.1 and PHP 8.3 or later. Compatibility checked with WordPress 7.2 RC2.
+Improves Site map navigation, accessibility, and readability.
