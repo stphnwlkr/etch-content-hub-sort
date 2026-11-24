@@ -955,7 +955,7 @@
 .etch-delta-map [hidden] {display:none!important;}
 .etch-delta-map :is(h2,h3,h4,p,ul) {margin:0;}
 .etch-delta-map button {font:inherit;color:inherit;cursor:pointer;}
-.etch-delta-map :is(button,input,a):focus-visible {outline:2px solid var(--delta-accent);outline-offset:2px;}
+.etch-delta-map :is(button,input,select,a):focus-visible {outline:2px solid var(--delta-accent);outline-offset:2px;}
 .etch-delta-graph {display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-right:1px solid var(--delta-border);}
 .etch-delta-detail {min-width:0;min-height:0;overflow:auto;padding:12px 16px 24px;}
 .etch-delta-detail-content {margin-top:20px;}
@@ -1057,3 +1057,7 @@
 .etch-delta-map :is(.btn, .delta-graph-tool, .delta-graph-chip, .delta-graph-switch, .gd-rel button):hover { border-color: var(--delta-accent); background: color-mix(in srgb, var(--delta-accent) 14%, var(--delta-panel)); }
 .etch-delta-map .gd-rel button { width: 100%; margin: 4px 0; padding: 7px 9px; }
 .etch-delta-map .delta-graph-svg:focus-visible { outline: 2px solid var(--delta-accent); outline-offset: -3px; }
+
+.etch-delta-map .gd-sort { display: grid; gap: 6px; margin-top: 16px; font-size: calc(.8125rem * var(--etch-explorer-text-scale, 1)); }
+.etch-delta-map .gd-sort select { width: 100%; min-height: 36px; padding: 6px 9px; border: 1px solid var(--delta-border); border-radius: 6px; color: var(--delta-fg); background: var(--delta-panel-soft); color-scheme: dark; font: inherit; }
+.etch-delta-map .gd-item-title { min-width: 0; overflow-wrap: anywhere; }

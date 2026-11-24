@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 7.1
 Tested up to: 7.2
 Requires PHP: 8.3
-Stable tag: 2.2.1
+Stable tag: 2.2.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -61,6 +61,12 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 2.2.2 =
+* Support safe inline HTML titles in the main List table and Site map connection lists, including title creation and Quick edit.
+* Decode numeric and named HTML entities in map titles and taxonomy labels.
+* Sort Site map connection lists by title A–Z by default, with Z–A, creation date, and author sorting options.
+* Alphabetize Content and Taxonomies separately in the content-type picker, with A–Z, Z–A, and WordPress order options remembered per user in the current browser.
 
 = 2.2.1 =
 - Show sidebar tooltips only when the menu is collapsed.

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Content Explorer for Etch
  * Description: Browse, search, edit, and map content and shared resources in a dedicated Etch panel.
- * Version: 2.2.1
+ * Version: 2.2.2
  * Requires at least: 7.1
  * Requires PHP: 8.3
  * Update URI: https://github.com/stphnwlkr/etch-content-hub-sort
@@ -430,12 +430,13 @@ add_action(
 							$edit_link = $can_edit ? get_edit_term_link( $term->term_id, $slug ) : null;
 							return array(
 								'id' => $term->term_id,
-								'title' => $term->name,
+								'title' => Etch_Hub_Connections::title_data( $term->name )['title'],
+								'title_html' => Etch_Hub_Connections::title_data( $term->name )['title_html'],
 								'slug' => $term->slug,
 								'description' => $term->description,
 								'count' => (int) $term->count,
 								'parent' => (int) $term->parent,
-								'parent_title' => $parent_term instanceof WP_Term ? $parent_term->name : '',
+								'parent_title' => $parent_term instanceof WP_Term ? Etch_Hub_Connections::title_data( $parent_term->name )['title'] : '',
 								'has_children' => in_array( $term->term_id, $parents_with_children, true ),
 								'ancestors' => $parent_picker && $taxonomy->hierarchical ? array_map( 'intval', get_ancestors( $term->term_id, $slug, 'taxonomy' ) ) : array(),
 								'can_edit' => $can_edit,
@@ -600,8 +601,8 @@ add_action(
 					if ( 'publish' === $status && ! current_user_can( $post_type->cap->publish_posts ) ) {
 						return new WP_Error( 'etch_hub_sort_cannot_publish', __( 'You cannot publish this content type.', 'etch-content-hub-sort' ), array( 'status' => 403 ) );
 					}
-					$title = trim( sanitize_text_field( (string) $request->get_param( 'title' ) ) );
-					if ( '' === $title ) {
+					$title = trim( Etch_Hub_Connections::title_data( (string) $request->get_param( 'title' ) )['title_html'] );
+					if ( '' === trim( wp_strip_all_tags( $title ) ) ) {
 						return new WP_Error( 'etch_hub_sort_missing_title', __( 'Enter a title.', 'etch-content-hub-sort' ), array( 'status' => 400 ) );
 					}
 					$parent_id = absint( $request->get_param( 'parent' ) );
@@ -613,7 +614,7 @@ add_action(
 						array(
 							'post_type'   => $type,
 							'post_status' => $status,
-							'post_title'  => $title,
+							'post_title'  => wp_slash( $title ),
 							'post_parent' => $parent_id,
 							'post_author' => get_current_user_id(),
 						),
@@ -661,7 +662,7 @@ add_action(
 					}
 					$changes = array( 'ID' => $id, 'post_status' => $status, 'post_parent' => $parent_id );
 					if ( $request->has_param( 'title' ) ) {
-						$title = trim( sanitize_text_field( (string) $request->get_param( 'title' ) ) );
+						$title = trim( Etch_Hub_Connections::title_data( (string) $request->get_param( 'title' ) )['title_html'] );
 						$changes['post_title'] = wp_slash( $title );
 					}
 					if ( $request->has_param( 'slug' ) ) {
@@ -811,16 +812,18 @@ add_action(
 					$items = array_map(
 						static function ( WP_Post $post ) use ( $parents_with_children, $post_type ): array {
 							$can_edit = current_user_can( 'edit_post', $post->ID );
+							$title = Etch_Hub_Connections::title_data( get_the_title( $post ) );
 							return array(
 								'id'       => $post->ID,
-								'title'    => wp_specialchars_decode( get_the_title( $post ), ENT_QUOTES ),
+								'title'    => $title['title'],
+								'title_html' => $title['title_html'],
 								'edit_title' => $post->post_title,
 								'slug'     => $post->post_name,
 								'status'   => $post->post_status,
 								'created'  => $post->post_date,
 								'modified' => $post->post_modified,
 								'parent'   => (int) $post->post_parent,
-								'parent_title' => $post->post_parent ? get_the_title( $post->post_parent ) : '',
+								'parent_title' => $post->post_parent ? Etch_Hub_Connections::title_data( get_the_title( $post->post_parent ) )['title'] : '',
 								'has_children' => in_array( $post->ID, $parents_with_children, true ),
 								'ancestors' => $post_type->hierarchical ? array_map( 'intval', get_post_ancestors( $post ) ) : array(),
 								'can_edit' => $can_edit,
@@ -873,7 +876,7 @@ add_action(
 		}
 
 		$url     = plugin_dir_url( __FILE__ );
-		$version = '2.2.1';
+		$version = '2.2.2';
 		$types   = array();
 		$hierarchical_types = array();
 		$taxonomies = array();

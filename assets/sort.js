@@ -70,6 +70,20 @@
     if (text !== undefined) node.textContent = text;
     return node;
   };
+  // Retain only inline formatting in titles; labels, tooltips and edit fields remain plain text.
+  const titleContent = item => {
+    const title = element('span', 'etch-hub-sort-formatted-title');
+    if (!item.title_html) { title.textContent = item.title || ''; return title; }
+    const template = document.createElement('template'); template.innerHTML = item.title_html;
+    const inline = new Set(['EM', 'STRONG', 'B', 'I', 'MARK', 'S', 'DEL', 'SUB', 'SUP', 'SPAN']);
+    const append = (parent, children) => { for (const child of children) {
+      if (child.nodeType === 3) { parent.append(document.createTextNode(child.textContent)); continue; }
+      if (child.nodeType !== 1 || ['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'SVG', 'MATH'].includes(child.tagName)) continue;
+      if (inline.has(child.tagName)) { const safe = document.createElement(child.tagName.toLowerCase()); append(safe, child.childNodes); parent.append(safe); }
+      else append(parent, child.childNodes);
+    } };
+    append(title, template.content.childNodes); return title;
+  };
   const button = (label, callback, className = '') => {
     const node = element('button', `etch-hub-sort-button ${className}`, label);
     node.type = 'button';
@@ -913,15 +927,16 @@
             id.appendChild(expand);
           } else id.appendChild(element('span', 'etch-hub-sort-tree-spacer'));
           id.appendChild(element('span', 'etch-hub-sort-sr-only', sprintf(__('Level %d: ', 'etch-content-hub-sort'), depth + 1)));
-          id.appendChild(element('span', '', value));
+          id.appendChild(key === 'title' ? titleContent(item) : element('span', '', value));
           cell.appendChild(id);
           cell.title = value;
         } else if (key === 'title' && !hierarchy && item.parent) {
           cell.classList.add('etch-hub-sort-child-title');
-          cell.appendChild(element('div', '', value));
+          const title = element('div'); title.append(titleContent(item)); cell.append(title);
           cell.appendChild(element('div', 'etch-hub-sort-parent-label', sprintf(__('Child of %s', 'etch-content-hub-sort'), item.parent_title || `#${item.parent}`)));
           cell.title = sprintf(__('%1$s — child of %2$s', 'etch-content-hub-sort'), value, item.parent_title || `#${item.parent}`);
-        } else { cell.textContent = value; cell.title = String(value); }
+        } else if (key === 'title') { cell.append(titleContent(item)); cell.title = String(value); }
+        else { cell.textContent = value; cell.title = String(value); }
         row.appendChild(cell);
       }
       const tools = element('td', 'etch-hub-sort-tools-cell');
@@ -1454,16 +1469,46 @@
     const typeLabel = element('label', 'etch-content-type-label', __('Content type', 'etch-content-hub-sort'));
     const typeSelect = element('select', 'etch-hub-sort-placement-select');
     typeSelect.setAttribute('aria-label', __('Choose content type', 'etch-content-hub-sort'));
-    for (const [kind, label, values] of [ ['post', __('Content', 'etch-content-hub-sort'), config.types], ['term', __('Taxonomies', 'etch-content-hub-sort'), config.taxonomies] ]) {
-      const group = element('optgroup'); group.label = label;
-      for (const [name, value] of Object.entries(values || {})) {
-        if (['attachment', 'wp_global_styles', 'wp_font_family', 'wp_font_face'].includes(value)) continue;
-        const option = element('option', '', name || value); option.value = `${kind}:${value}`; group.append(option);
-      }
-      typeSelect.append(group);
+    const typeOrderKey = `etch-hub-sort-type-order:${config.userId || 0}`;
+    const typeOrder = element('select', 'etch-hub-sort-placement-select etch-content-type-order');
+    typeOrder.setAttribute('aria-label', __('Content type order', 'etch-content-hub-sort'));
+    for (const [value, label] of [
+      ['asc', __('A–Z', 'etch-content-hub-sort')],
+      ['desc', __('Z–A', 'etch-content-hub-sort')],
+      ['wordpress', __('WordPress order', 'etch-content-hub-sort')],
+    ]) {
+      const option = element('option', '', label); option.value = value; typeOrder.append(option);
     }
+    try {
+      const saved = localStorage.getItem(typeOrderKey);
+      if (['asc', 'desc', 'wordpress'].includes(saved)) typeOrder.value = saved;
+    } catch { /* Alphabetical order remains available without storage. */ }
+    const typeCollator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+    const renderTypes = () => {
+      const selected = typeSelect.value;
+      typeSelect.replaceChildren();
+      for (const [kind, label, values] of [ ['post', __('Content', 'etch-content-hub-sort'), config.types], ['term', __('Taxonomies', 'etch-content-hub-sort'), config.taxonomies] ]) {
+        const group = element('optgroup'); group.label = label;
+        const entries = Object.entries(values || {});
+        if (typeOrder.value !== 'wordpress') entries.sort(([a, av], [b, bv]) => (typeCollator.compare(a || av, b || bv) || av.localeCompare(bv)) * (typeOrder.value === 'desc' ? -1 : 1));
+        for (const [name, value] of entries) {
+          if (['attachment', 'wp_global_styles', 'wp_font_family', 'wp_font_face'].includes(value)) continue;
+          const option = element('option', '', name || value); option.value = `${kind}:${value}`; group.append(option);
+        }
+        typeSelect.append(group);
+      }
+      if ([...typeSelect.options].some(option => option.value === selected)) typeSelect.value = selected;
+    };
+    renderTypes();
     if ([...typeSelect.options].some(option => option.value === 'post:page')) typeSelect.value = 'post:page';
-    typeLabel.append(typeSelect); listHeading.append(typeLabel);
+    typeOrder.addEventListener('change', () => {
+      renderTypes();
+      try { localStorage.setItem(typeOrderKey, typeOrder.value); } catch { /* Keep the selected order for this session. */ }
+    });
+    const orderLabel = element('label', 'etch-content-type-label', __('Type order', 'etch-content-hub-sort'));
+    orderLabel.append(typeOrder);
+    const typeControls = element('div', 'etch-content-type-controls');
+    typeLabel.append(typeSelect); typeControls.append(typeLabel, orderLabel); listHeading.append(typeControls);
     const listHost = element('div', 'etch-content-list-host');
     listContent.append(listHeading, listHost);
     const mapContent = element('div', 'etch-content-map-view');

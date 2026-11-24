@@ -38,6 +38,8 @@ The current editor document and the selected map item are distinct. Exploring a 
 
 The Site graph groups public content types and entries with their taxonomies and terms. It shows content links, shared usage between visible entries, type membership, term assignments, and hierarchy relationships. Nonpublic content types and internal shared resources remain available through List and item maps.
 
+Map titles decode HTML entities. Related-entry buttons support safe inline formatting, including emphasis, strong text, and highlights. Connection lists start in title A–Z order. Sort connections also offers title Z–A, newest or oldest creation date, and author A–Z or Z–A. Entries without date or author information follow entries with that information.
+
 The graph fits on opening. Drag nodes, pan and zoom the graph, use Fit to recenter it or Reset view to clear selections, search, and filters and restore the full map, and use its filters and display controls to focus the view. Search hides connection lines unrelated to matching items. The X beside Find clears the search while keeping the map open.
 
 Select a Site entry and choose View connections to inspect that record in the Selected item map. Switch between Site and Selected item without changing the editor document. Details sit in a separate rounded panel beside the graph.
@@ -85,3 +87,5 @@ The plugin is GPLv3-or-later. Map rendering and styles adapt Delta 0.5.0 by 21Pr
 Keep the plugin header, asset version, and readme stable tag in sync. PHP integration suites in tests run on an isolated WordPress installation and clean up their fixtures. The updater smoke test runs without WordPress. Release verification includes Plugin Check, permission tests, PHP/JavaScript syntax, CSS parsing, archive validation, and a builder smoke check.
 
 Push a matching vX.Y.Z tag only when publication is authorized. GitHub Actions packages the committed production files and publishes the installable ZIP with the consolidated release notes. Browser-specific styling and future Etch changes still require visual checks on their target versions.
+
+Content-type and taxonomy choices are alphabetized separately. Type order offers A–Z, Z–A, or WordPress registration order and remembers the choice per user in this browser. The main List table supports the same safe inline title formatting as the Site map details.

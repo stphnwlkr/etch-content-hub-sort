@@ -845,3 +845,6 @@ body:has(.etch-content-panel-open) .element-menu-wrapper { display: none !import
   .etch-content-type-label { flex-wrap: wrap; min-inline-size: 0; }
   .etch-content-type-label select { max-inline-size: 100%; }
 }
+
+.etch-content-type-controls { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 10px 16px; min-width: 0; }
+.etch-content-type-controls .etch-content-type-order { width: auto; max-width: 100%; }

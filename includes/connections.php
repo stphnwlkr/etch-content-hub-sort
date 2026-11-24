@@ -99,11 +99,22 @@ final class Etch_Hub_Connections {
 		return add_query_arg( array( 'etch' => 'magic', 'post_id' => $post->ID ), home_url( '/' ) );
 	}
 
+	/** Keep formatting separate from the plain text used by graph labels and sorting. */
+	public static function title_data( string $title ): array {
+		$title = html_entity_decode( $title, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$tags = array_fill_keys( array( 'em', 'strong', 'b', 'i', 'mark', 's', 'del', 'sub', 'sup', 'span' ), array() );
+		return array(
+			'title' => wp_strip_all_tags( $title ),
+			'title_html' => wp_kses( $title, $tags ),
+		);
+	}
+
 	public static function node( int $id ): ?array {
 		$post = get_post( $id );
 		if ( ! $post || ! in_array( $post->post_type, self::types(), true ) || in_array( $post->post_status, array( 'trash', 'auto-draft' ), true ) || ! current_user_can( 'edit_post', $id ) ) { return null; }
 		$type = get_post_type_object( $post->post_type );
-		return array( 'id' => $id, 'title' => wp_specialchars_decode( wp_strip_all_tags( get_the_title( $id ) ), ENT_QUOTES ) ?: '#' . $id, 'post_type' => $post->post_type, 'type' => $type ? ( $type->labels->singular_name ?: $type->label ?: $post->post_type ) : $post->post_type, 'kind' => in_array( $post->post_type, array( 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation' ), true ) ? 'shared' : 'page', 'status' => $post->post_status, 'path' => $type && is_post_type_viewable( $type ) ? wp_make_link_relative( (string) get_permalink( $id ) ) : '', 'edit_url' => etch_hub_sort_wordpress_edit_url( $post ), 'etch_edit_url' => self::etch_edit_url( $post ), 'parent' => (int) $post->post_parent, 'public' => (bool) ( $type && $type->public ), 'type_label' => $type ? ( $type->labels->name ?: $post->post_type ) : $post->post_type, 'view_url' => is_post_publicly_viewable( $post ) ? (string) get_permalink( $post ) : '', 'type_manage_url' => $type && $type->show_ui ? admin_url( 'edit.php?post_type=' . $post->post_type ) : '', 'type_add_url' => $type && current_user_can( $type->cap->create_posts ) ? admin_url( 'post-new.php?post_type=' . $post->post_type ) : '', 'type_archive_url' => get_post_type_archive_link( $post->post_type ) ?: '', 'modified' => mysql2date( 'j M Y', $post->post_modified ), 'thumb' => get_the_post_thumbnail_url( $post, 'medium' ) ?: '' );
+		$title = self::title_data( get_the_title( $id ) );
+		return array( 'id' => $id, 'title' => $title['title'] ?: '#' . $id, 'title_html' => $title['title_html'], 'created' => $post->post_date, 'author' => html_entity_decode( wp_strip_all_tags( (string) get_the_author_meta( 'display_name', $post->post_author ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ), 'post_type' => $post->post_type, 'type' => $type ? ( $type->labels->singular_name ?: $type->label ?: $post->post_type ) : $post->post_type, 'kind' => in_array( $post->post_type, array( 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation' ), true ) ? 'shared' : 'page', 'status' => $post->post_status, 'path' => $type && is_post_type_viewable( $type ) ? wp_make_link_relative( (string) get_permalink( $id ) ) : '', 'edit_url' => etch_hub_sort_wordpress_edit_url( $post ), 'etch_edit_url' => self::etch_edit_url( $post ), 'parent' => (int) $post->post_parent, 'public' => (bool) ( $type && $type->public ), 'type_label' => $type ? ( $type->labels->name ?: $post->post_type ) : $post->post_type, 'view_url' => is_post_publicly_viewable( $post ) ? (string) get_permalink( $post ) : '', 'type_manage_url' => $type && $type->show_ui ? admin_url( 'edit.php?post_type=' . $post->post_type ) : '', 'type_add_url' => $type && current_user_can( $type->cap->create_posts ) ? admin_url( 'post-new.php?post_type=' . $post->post_type ) : '', 'type_archive_url' => get_post_type_archive_link( $post->post_type ) ?: '', 'modified' => mysql2date( 'j M Y', $post->post_modified ), 'thumb' => get_the_post_thumbnail_url( $post, 'medium' ) ?: '' );
 	}
 
 	/** Paginated site inventory with permission-filtered edges, including disconnected content. */
@@ -120,6 +131,7 @@ final class Etch_Hub_Connections {
 			array_merge( array( $after ), $types )
 		) ) );
 		_prime_post_caches( $ids, false, true );
+		update_post_author_caches( array_filter( array_map( 'get_post', $ids ) ) );
 		$nodes = array(); $edges = array(); $visible = array();
 		foreach ( $ids as $id ) {
 			$node = self::node( $id );
@@ -184,7 +196,7 @@ final class Etch_Hub_Connections {
 			$term = get_term( (int) $row->term_id, $row->taxonomy );
 			if ( ! $term || is_wp_error( $term ) || ! current_user_can( 'edit_term', $term->term_id ) ) { continue; }
 			$view = get_term_link( $term );
-			$nodes[] = array( 'id' => 'term:' . $term->term_id, 'kind' => 'term', 'group' => $term->taxonomy, 'label' => wp_strip_all_tags( $term->name ), 'parent' => $term->parent ? 'term:' . $term->parent : '', 'description' => wp_strip_all_tags( $term->description ), 'meta' => array( 'Taxonomy' => $schema[ $term->taxonomy ]['label'], 'Entries' => (int) $term->count, 'Slug' => $term->slug ), 'edit' => get_edit_term_link( $term->term_id, $term->taxonomy ), 'view' => is_wp_error( $view ) || ! is_taxonomy_viewable( $term->taxonomy ) ? '' : $view );
+			$nodes[] = array( 'id' => 'term:' . $term->term_id, 'kind' => 'term', 'group' => $term->taxonomy, 'label' => self::title_data( $term->name )['title'], 'parent' => $term->parent ? 'term:' . $term->parent : '', 'description' => wp_strip_all_tags( $term->description ), 'meta' => array( 'Taxonomy' => $schema[ $term->taxonomy ]['label'], 'Entries' => (int) $term->count, 'Slug' => $term->slug ), 'edit' => get_edit_term_link( $term->term_id, $term->taxonomy ), 'view' => is_wp_error( $view ) || ! is_taxonomy_viewable( $term->taxonomy ) ? '' : $view );
 		}
 		return rest_ensure_response( array( 'nodes' => $nodes, 'next_cursor' => $rows ? (int) end( $rows )->term_taxonomy_id : $after, 'done' => count( $rows ) < 100 ) );
 	}

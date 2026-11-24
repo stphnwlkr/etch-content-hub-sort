@@ -22,6 +22,8 @@
     const spacer = el('span','spacer');
     const itemHistory=[];
     const groupStates=new Map();
+    let detailSort = 'title-asc';
+    const titleCollator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
     const previousItem=button(__('Previous item','etch-content-hub-sort'),()=>{const previous=itemHistory.pop();if(previous)loadPage(previous.id,false);},'btn map-previous-item');
     previousItem.hidden=true;
     const headerAction=button('×',()=>{
@@ -159,13 +161,72 @@
       for(const [label,kind]of [[__('Post types','etch-content-hub-sort'),'type'],[__('Entries','etch-content-hub-sort'),'post'],[__('Terms','etch-content-hub-sort'),'term']])card.append(row(label,siteData.nodes.filter(n=>n.kind===kind).length));card.append(row(__('Links in content','etch-content-hub-sort'),siteData.edges.filter(e=>e.kind==='link').length));
       details.append(card,el('p','gd-hint',__('Shows public content types. Find nonpublic items and shared resources in List.','etch-content-hub-sort')),el('p','gd-hint',__('The ringed dot is the editor item. Click a dot to see its details. Scroll to zoom, drag to move. Use Tab to reach the zoom buttons, then Enter or Space. Reset view restores the full map. Esc returns to the editor.','etch-content-hub-sort')));
     }
+    // Build inline title markup from an inert template; never retain attributes or links in a button.
+    function itemTitle(source, fallback){
+      const title = el('span','gd-item-title');
+      if(!source?.title_html){title.textContent=fallback;return title;}
+      const template=document.createElement('template');template.innerHTML=source.title_html;
+      const inline=new Set(['EM','STRONG','B','I','MARK','S','DEL','SUB','SUP','SPAN']);
+      const append=(parent,children)=>{for(const child of children){
+        if(child.nodeType===3){parent.append(document.createTextNode(child.textContent));continue;}
+        if(child.nodeType!==1 || ['SCRIPT','STYLE','IFRAME','OBJECT','SVG','MATH'].includes(child.tagName))continue;
+        if(inline.has(child.tagName)){const safe=document.createElement(child.tagName.toLowerCase());append(safe,child.childNodes);parent.append(safe);}
+        else append(parent,child.childNodes);
+      }};
+      append(title,template.content.childNodes);return title;
+    }
+    function compareConnection(a,b,sources){
+      const left=sources.get(a.id)||{},right=sources.get(b.id)||{};
+      const titleOrder=titleCollator.compare(a.label,b.label)||String(a.id).localeCompare(String(b.id));
+      if(detailSort==='title-desc')return -titleOrder;
+      if(detailSort==='created-desc'||detailSort==='created-asc'){
+        // Terms and type hubs have no creation date; keep them after dated entries in both directions.
+        if(!left.created||!right.created)return left.created?-1:right.created?1:titleOrder;
+        const order=left.created.localeCompare(right.created);
+        return (detailSort==='created-desc'?-order:order)||titleOrder;
+      }
+      if(detailSort==='author-asc'||detailSort==='author-desc'){
+        if(!left.author||!right.author)return left.author?-1:right.author?1:titleOrder;
+        const order=titleCollator.compare(left.author,right.author);
+        return (detailSort==='author-desc'?-order:order)||titleOrder;
+      }
+      return titleOrder;
+    }
     function siteSelected(node){
       if(!node){siteSummary();return;}const head=el('div','section-label has-action');head.append(el('span','',__('Selected','etch-content-hub-sort')),button(__('Clear','etch-content-hub-sort'),()=>engine.select(null),'btn clear'));
       const card=titleCard(node.label,node.color,node.id===`post:${editorItemId}`?__('Current item','etch-content-hub-sort'):node.kindName);
       if(node.description)card.append(el('p','gd-desc',node.description));
       for(const [key,value]of node.meta)card.append(row(key,value));details.replaceChildren(head,card);
       const source=siteData.nodes.find(n=>n.id===node.id);details.append(actions(source||node,card));
-      for(const group of node.groups){const section=el('section','gd-rel');section.append(el('h4','',`${group.title} ${group.items.length}`));const list=el('ul');list.setAttribute('role','list');for(const item of group.items){const li=el('li'),go=button('',()=>engine.select(item.id,true),'');const dot=el('i',`dot${item.square?' square':''}`);dot.style.background=item.color;go.append(dot,document.createTextNode(item.label));go.addEventListener('mouseenter',()=>engine.hover(item.id));go.addEventListener('mouseleave',()=>engine.hover(null));li.append(go);list.append(li);}section.append(list);details.append(section);}
+      const sources=new Map(siteData.nodes.map(item=>[item.id,item]));
+      const groups=el('div','gd-connection-groups');
+      if(node.groups.length){
+        const sortLabel=el('label','gd-sort');sortLabel.append(el('span','',__('Sort connections','etch-content-hub-sort')));
+        const sort=el('select');sort.setAttribute('aria-label',__('Sort connections','etch-content-hub-sort'));
+        for(const [value,label] of [
+          ['title-asc',__('Title: A–Z','etch-content-hub-sort')],['title-desc',__('Title: Z–A','etch-content-hub-sort')],
+          ['created-desc',__('Created: newest first','etch-content-hub-sort')],['created-asc',__('Created: oldest first','etch-content-hub-sort')],
+          ['author-asc',__('Author: A–Z','etch-content-hub-sort')],['author-desc',__('Author: Z–A','etch-content-hub-sort')]
+        ]){const option=el('option','',label);option.value=value;sort.append(option);}
+        sort.value=detailSort;sort.addEventListener('change',()=>{detailSort=sort.value;renderGroups();});
+        sortLabel.append(sort);details.append(sortLabel);
+      }
+      details.append(groups);renderGroups();
+      function renderGroups(){
+        groups.replaceChildren();
+        for(const group of node.groups){
+          const section=el('section','gd-rel');section.append(el('h4','',`${group.title} ${group.items.length}`));
+          const list=el('ul');list.setAttribute('role','list');
+          for(const item of [...group.items].sort((a,b)=>compareConnection(a,b,sources))){
+            const source=sources.get(item.id),li=el('li'),go=button('',()=>engine.select(item.id,true),'');
+            const dot=el('i',`dot${item.square?' square':''}`);dot.style.background=item.color;
+            go.append(dot,itemTitle(source,item.label));go.setAttribute('aria-label',item.label);
+            go.addEventListener('mouseenter',()=>engine.hover(item.id));go.addEventListener('mouseleave',()=>engine.hover(null));
+            li.append(go);list.append(li);
+          }
+          section.append(list);groups.append(section);
+        }
+      }
       if(!node.groups.length)details.append(el('p','gd-hint',__('No connections.','etch-content-hub-sort')));
     }
     function renderSite(){

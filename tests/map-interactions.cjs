@@ -53,6 +53,34 @@ const assert = require('node:assert/strict');
   pass(doc.querySelector('.etch-delta-detail-content').textContent.includes('Test site'), 'Reset restores site details');
   const resetScale = scale(); control('zoom-in').click(); control('reset').click();
   pass(Math.abs(scale() - resetScale) < .000001, 'Reset returns to the same fitted view after zooming');
+  // A type hub exposes the screenshot's related-entry list, separate from the main List table.
+  w.etchHubCloseConnections();
+  w.fetch = async url => ({ ok:true, json:async()=>url.includes('/terms') ? {nodes:[],done:true} : {
+    nodes:[
+      {id:11,title:'Zulu – Rock',title_html:'<em>Zulu</em> &#8211; Rock',created:'2026-01-01 12:00:00',author:'Amy'},
+      {id:12,title:'alpha & Soul',title_html:'<strong>alpha</strong> &amp; Soul',created:'2026-03-01 12:00:00',author:'Zoe'},
+      {id:13,title:'Beta',title_html:'<img src=x onerror="window.bad=true"><span onclick="window.bad=true">Beta</span><script>window.bad=true</script>',created:'2026-02-01 12:00:00',author:'Bob'}
+    ].map(node=>({...node,post_type:'video',type:'Video',type_label:'Videos',public:true,status:'publish',path:'/'})),
+    edges:[],taxonomies:{},site_name:'Test site',done:true,
+  }});
+  w.etchHubMountConnections(doc.getElementById('host'));
+  await new Promise(resolve => setTimeout(resolve, 40));
+  doc.querySelector('[data-graph="nodes"] .delta-graph-node').dispatchEvent(new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+  const listOrder=()=>[...doc.querySelectorAll('.gd-rel button')].map(n=>n.getAttribute('aria-label'));
+  pass(JSON.stringify(listOrder())===JSON.stringify(['alpha & Soul','Beta','Zulu – Rock']), 'Related entries default to title A–Z ignoring case');
+  const sorting=doc.querySelector('.gd-sort select');
+  function sortBy(value){sorting.value=value;sorting.dispatchEvent(new w.Event('change'));}
+  sortBy('title-desc');pass(listOrder()[0]==='Zulu – Rock'&&listOrder()[2]==='alpha & Soul','Title Z–A reverses alphabetical order');
+  sortBy('created-desc');pass(listOrder()[0]==='alpha & Soul'&&listOrder()[2]==='Zulu – Rock','Creation sort uses raw date, newest first');
+  sortBy('created-asc');pass(listOrder()[0]==='Zulu – Rock'&&listOrder()[2]==='alpha & Soul','Creation sort supports oldest first');
+  sortBy('author-asc');pass(listOrder()[0]==='Zulu – Rock'&&listOrder()[2]==='alpha & Soul','Author A–Z sorts display names');
+  sortBy('author-desc');pass(listOrder()[0]==='alpha & Soul'&&listOrder()[2]==='Zulu – Rock','Author Z–A reverses author order');
+  pass(!!doc.querySelector('.gd-item-title em')&&!!doc.querySelector('.gd-item-title strong'),'Inline title emphasis is rendered in related-entry buttons');
+  pass(doc.querySelector('.gd-connection-groups').textContent.includes('Zulu – Rock'),'HTML entities display as readable characters');
+  pass(!doc.querySelector('.gd-item-title img,.gd-item-title script,.gd-item-title [onclick]')&&!w.bad,'Formatted titles discard executable elements and attributes');
+  pass(sorting.isConnected,'Changing sort retains the select control and keyboard focus target');
+  doc.querySelector('.gd-rel button').click();
+  pass(doc.querySelector('.gd-sort select').value==='author-desc','Sort choice is retained when selecting another node');
   pass(errors.length === 0, 'Map operations raise no DOM errors');
   w.etchHubCloseConnections(); dom.window.close();
 })().catch(error => { console.error(error); process.exitCode = 1; });

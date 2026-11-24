@@ -20,8 +20,15 @@ $connections = static function ( $id ) {
 };
 try {
 	wp_set_current_user( get_users( array( 'role' => 'administrator', 'number' => 1 ) )[0]->ID );
+	$formatted_title = Etch_Hub_Connections::title_data( '<em>Artist</em> &#8211; Rock &amp; Roll &#x1F3B5;' );
+	$assert( 'Artist – Rock & Roll 🎵' === $formatted_title['title'], 'map labels decode numeric, named and hexadecimal entities' );
+	$assert( str_contains( $formatted_title['title_html'], '<em>Artist</em>' ), 'connection titles retain safe inline formatting' );
+	$safe_title = Etch_Hub_Connections::title_data( '<a href="javascript:alert(1)"><strong onclick="alert(1)">Rock</strong></a><img src=x onerror=alert(1)>' );
+	$assert( '<strong>Rock</strong>' === $safe_title['title_html'], 'formatted titles exclude links, images and event attributes' );
 	delete_option( 'etch_hub_sort_editor_access' );
 	$target = $create( 'page', 'Map destination' );
+	$target_node = Etch_Hub_Connections::node( $target );
+	$assert( get_post( $target )->post_date === $target_node['created'] && get_the_author_meta( 'display_name', get_current_user_id() ) === $target_node['author'], 'map records include the creation date and author for connection sorting' );
 	$check_etch_url = Etch_Hub_Connections::node( $target )['etch_edit_url'];
 	$assert( str_contains( $check_etch_url, 'etch=magic' ) && str_contains( $check_etch_url, 'post_id=' . $target ), 'editable pages offer the official Etch builder URL' );
 	$editable_list = new WP_REST_Request( 'GET', '/etch-hub-sort/v1/posts' );
