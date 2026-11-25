@@ -886,7 +886,7 @@
   left: 10px;
   top: 10px;
   max-width: calc(50% - 16px);
-  gap: 0 16px;
+  gap: 8px;
   padding: 3px 12px;
   border-radius: 8px;
   background: var(--delta-panel);

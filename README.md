@@ -24,7 +24,7 @@ Taxonomy lists support search, sorting, pagination, hierarchy, creation, and qui
 
 ## Explore an item's connections
 
-An item map places the chosen record in the center, with incoming links, outgoing links, and shared resources around it. Templates, template parts, patterns, Etch components, and saved navigation references appear where the saved content provides those relationships. The index also includes Etch's resolved saved template and reverse shared-resource usage.
+An item map places the chosen record in the center, with incoming links, outgoing links, and shared resources around it. Hierarchical records also show separate Parent and Children groups. These represent saved parent relationships without implying a hyperlink. Templates, template parts, patterns, Etch components, and saved navigation references appear where the saved content provides those relationships. The index also includes Etch's resolved saved template and reverse shared-resource usage.
 
 Saved selections from ACF Relationship and Post Object fields, Meta Box Post fields, and MB Relationships appear under **Incoming relationships** when another item references the selected item, and under **Outgoing relationships** when the selected item references another item. Select a card to see the field or relationship name. The first item map on a site with supported fields indexes existing selections in batches so reverse connections appear without resaving each post.
 
@@ -58,11 +58,11 @@ Exports do not include content, credentials, site URLs, update caches, or browse
 
 ## Map scope and limits
 
-Maps read saved WordPress and Etch block content without executing blocks, loops, or shortcodes. They resolve literal local links, saved shared references, and supported template assignments. Dynamic URLs, automatically queried related posts, unsaved editor changes, classic menu membership, and theme-file-only resources are outside the map's scope.
+Maps read saved WordPress and Etch block content without executing blocks, loops, or shortcodes. They resolve literal local links, classic menu item destinations, navigation blocks with explicit post IDs, saved shared references, and supported template assignments. Links in saved shared navigation and components appear on the pages that use those resources, and those pages appear in the target’s reverse connections. Menu membership alone does not imply that every page uses that menu. Arbitrary dynamic menu queries and shortcodes are not executed. Dynamic URLs, automatically queried related posts, unsaved editor changes, and theme-file-only resources are outside the map's scope.
 
 To integrate another source of saved post relationships, use the `etch_hub_sort_post_relationships` filter. It receives an array and the source `WP_Post`. Return target post IDs as array keys with an array of field or relationship labels per ID. The callback runs during indexing as well as map requests, so read saved values and keep lookups scoped to the source post. Use `Etch_Hub_Relationships::invalidate()` when changing relationships outside normal post or post-meta saves so reverse connections are rebuilt.
 
-Indexing and Site graph loading use batches. Saving content updates its relationships; template, permalink, and identity changes trigger reindexing. Earlier map indexes migrate automatically. Item maps show a notice when they reach their 500 incoming-relationship or 100 nested-resource processing limit. Only editable records and permitted relationships are returned to the current user.
+Indexing and Site graph loading use batches. Saving content updates its relationships; template, permalink, and identity changes trigger reindexing. Earlier map indexes migrate automatically. Item maps show a notice when they reach their 500 incoming-relationship, 500 direct-child, or 100 nested-resource processing limit. Only editable records and permitted relationships are returned to the current user.
 
 ## Install and update
 

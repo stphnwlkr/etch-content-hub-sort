@@ -111,7 +111,7 @@ try {
 	$assert( in_array( $part, array_column( $response['uses'], 'id' ), true ), 'shared parts appear in Uses' );
 	$assert( in_array( $source, array_column( $connections( $target )->get_data()['from'], 'id' ), true ), 'reverse links appear in Linked from' );
 	$assert( in_array( $source, array_column( $connections( $part )->get_data()['used_by'], 'id' ), true ), 'reverse component references appear in Used by' );
-	$assert( 2 === (int) get_option( 'etch_hub_map_index_version' ), 'map index migrates to the template-aware schema' );
+	$assert( 3 === (int) get_option( 'etch_hub_map_index_version' ), 'map index migrates to the menu-aware schema' );
 	// More than one site-map batch, including an edge whose target is in a later batch.
 	$first = $create( 'page', 'Site scan first' );
 	for ( $i = 0; $i < 101; $i++ ) { $create( 'page', 'Site scan item ' . $i ); }

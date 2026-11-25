@@ -4,7 +4,7 @@ Tags: etch, content hub, search, sort, pagination
 Requires at least: 7.1
 Tested up to: 7.2
 Requires PHP: 8.3
-Stable tag: 2.2.2
+Stable tag: 2.3.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -61,6 +61,14 @@ The item moves to WordPress Trash after confirmation, subject to the user's dele
 No. WordPress has no Trash for terms. The Delete button asks for confirmation before permanently removing a term. Child terms move to the deleted term's parent.
 
 == Changelog ==
+
+= 2.3.0 =
+* Reduce map filter button column spacing to 8px and add an 8px row gap.
+* Add explicit Parent and Children groups to Current item maps for hierarchical content.
+* Index classic menu destinations and navigation-link blocks that store a post ID without a URL.
+* Follow saved menu links through nested Etch components, navigation posts, and supported templates in both connection directions.
+* Include inherited navigation links between public pages in the Site map.
+* Refresh menu indexes when menu destinations change and migrate existing indexes automatically.
 
 = 2.2.2 =
 * Support safe inline HTML titles in the main List table and Site map connection lists, including title creation and Quick edit.

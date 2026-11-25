@@ -8,7 +8,7 @@ final class Etch_Hub_Connections {
 	private const CURSOR = 'etch_hub_map_cursor_v1';
 
 	public static function types(): array {
-		return array_values( array_unique( array_merge( get_post_types( array( 'public' => true ) ), get_post_types( array( 'show_in_rest' => true ) ), array( 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation' ) ) ) );
+		return array_values( array_unique( array_merge( get_post_types( array( 'public' => true ) ), get_post_types( array( 'show_in_rest' => true ) ), array( 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation', 'nav_menu_item' ) ) ) );
 	}
 
 	/** Resolve only literal local URLs. Dynamic expressions are deliberately excluded. */
@@ -40,6 +40,12 @@ final class Etch_Hub_Connections {
 						elseif ( is_string( $value ) && in_array( strtolower( (string) $key ), array( 'href', 'url' ), true ) ) { $links[] = self::target( $value ); }
 					}
 				};
+				// Navigation blocks may store a post ID without a literal URL.
+				if ( in_array( $name, array( 'core/navigation-link', 'core/navigation-submenu' ), true ) && 'post-type' === ( $attrs['kind'] ?? '' ) ) {
+					$target_id = absint( $attrs['id'] ?? 0 );
+					$target = $target_id ? get_post( $target_id ) : null;
+					if ( $target && $target->post_type === ( $attrs['type'] ?? '' ) ) { $links[] = $target->ID; }
+				}
 				$read( $attrs );
 				$walk( $block['innerBlocks'] ?? array() );
 			}
@@ -56,20 +62,29 @@ final class Etch_Hub_Connections {
 		$post = get_post( $id );
 		if ( ! $post || wp_is_post_revision( $id ) || wp_is_post_autosave( $id ) || ! in_array( $post->post_type, self::types(), true ) ) { return; }
 		$relations = self::extract( $post->post_content );
+		if ( 'nav_menu_item' === $post->post_type ) {
+			$kind = get_post_meta( $id, '_menu_item_type', true );
+			if ( 'post_type' === $kind ) {
+				$target_id = (int) get_post_meta( $id, '_menu_item_object_id', true );
+				$target = $target_id > 0 ? get_post( $target_id ) : null;
+				if ( $target && $target->post_type === get_post_meta( $id, '_menu_item_object', true ) ) { $relations['links'][] = $target->ID; }
+			} elseif ( 'custom' === $kind ) { $relations['links'][] = self::target( (string) get_post_meta( $id, '_menu_item_url', true ) ); }
+		}
+
 		$template = self::template_for( $post );
 		if ( $template ) { $relations['uses'][] = $template; }
 		foreach ( array( self::LINK => 'links', self::USES => 'uses' ) as $key => $kind ) {
 			delete_post_meta( $id, $key );
-			foreach ( array_diff( $relations[ $kind ], array( $id ) ) as $target ) { add_post_meta( $id, $key, $target ); }
+			foreach ( array_unique( array_diff( array_filter( $relations[ $kind ] ), array( $id ) ) ) as $target ) { add_post_meta( $id, $key, $target ); }
 		}
 	}
 
 	/** Keyset batches keep large sites out of a single request. Safe to repeat after interruption. */
 	private static function batch(): bool {
 		global $wpdb;
-		if ( 2 !== (int) get_option( 'etch_hub_map_index_version', 0 ) ) {
+		if ( 3 !== (int) get_option( 'etch_hub_map_index_version', 0 ) ) {
 			delete_option( self::CURSOR );
-			update_option( 'etch_hub_map_index_version', 2, false );
+			update_option( 'etch_hub_map_index_version', 3, false );
 		}
 		$cursor = (int) get_option( self::CURSOR, 0 );
 		if ( -1 === $cursor ) { return true; }
@@ -114,7 +129,18 @@ final class Etch_Hub_Connections {
 		if ( ! $post || ! in_array( $post->post_type, self::types(), true ) || in_array( $post->post_status, array( 'trash', 'auto-draft' ), true ) || ! current_user_can( 'edit_post', $id ) ) { return null; }
 		$type = get_post_type_object( $post->post_type );
 		$title = self::title_data( get_the_title( $id ) );
-		return array( 'id' => $id, 'title' => $title['title'] ?: '#' . $id, 'title_html' => $title['title_html'], 'created' => $post->post_date, 'author' => html_entity_decode( wp_strip_all_tags( (string) get_the_author_meta( 'display_name', $post->post_author ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ), 'post_type' => $post->post_type, 'type' => $type ? ( $type->labels->singular_name ?: $type->label ?: $post->post_type ) : $post->post_type, 'kind' => in_array( $post->post_type, array( 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation' ), true ) ? 'shared' : 'page', 'status' => $post->post_status, 'path' => $type && is_post_type_viewable( $type ) ? wp_make_link_relative( (string) get_permalink( $id ) ) : '', 'edit_url' => etch_hub_sort_wordpress_edit_url( $post ), 'etch_edit_url' => self::etch_edit_url( $post ), 'parent' => (int) $post->post_parent, 'public' => (bool) ( $type && $type->public ), 'type_label' => $type ? ( $type->labels->name ?: $post->post_type ) : $post->post_type, 'view_url' => is_post_publicly_viewable( $post ) ? (string) get_permalink( $post ) : '', 'type_manage_url' => $type && $type->show_ui ? admin_url( 'edit.php?post_type=' . $post->post_type ) : '', 'type_add_url' => $type && current_user_can( $type->cap->create_posts ) ? admin_url( 'post-new.php?post_type=' . $post->post_type ) : '', 'type_archive_url' => get_post_type_archive_link( $post->post_type ) ?: '', 'modified' => mysql2date( 'j M Y', $post->post_modified ), 'thumb' => get_the_post_thumbnail_url( $post, 'medium' ) ?: '' );
+		$menu_url = '';
+		if ( 'nav_menu_item' === $post->post_type ) {
+			$menus = get_the_terms( $id, 'nav_menu' );
+			if ( ! is_wp_error( $menus ) && $menus ) {
+				$label = $title['title'];
+				if ( '' === $label && 'post_type' === get_post_meta( $id, '_menu_item_type', true ) ) { $label = self::title_data( get_the_title( (int) get_post_meta( $id, '_menu_item_object_id', true ) ) )['title']; }
+				$title = self::title_data( implode( ', ', wp_list_pluck( $menus, 'name' ) ) . ' · ' . ( $label ?: '#' . $id ) );
+				$menu_url = current_user_can( 'edit_theme_options' ) ? admin_url( 'nav-menus.php?action=edit&menu=' . $menus[0]->term_id ) : '';
+			}
+		}
+
+		return array( 'id' => $id, 'title' => $title['title'] ?: '#' . $id, 'title_html' => $title['title_html'], 'created' => $post->post_date, 'author' => html_entity_decode( wp_strip_all_tags( (string) get_the_author_meta( 'display_name', $post->post_author ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ), 'post_type' => $post->post_type, 'type' => $type ? ( $type->labels->singular_name ?: $type->label ?: $post->post_type ) : $post->post_type, 'kind' => in_array( $post->post_type, array( 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation', 'nav_menu_item' ), true ) ? 'shared' : 'page', 'status' => $post->post_status, 'path' => $type && is_post_type_viewable( $type ) ? wp_make_link_relative( (string) get_permalink( $id ) ) : '', 'edit_url' => 'nav_menu_item' === $post->post_type ? $menu_url : etch_hub_sort_wordpress_edit_url( $post ), 'etch_edit_url' => self::etch_edit_url( $post ), 'parent' => (int) $post->post_parent, 'public' => (bool) ( $type && $type->public ), 'type_label' => $type ? ( $type->labels->name ?: $post->post_type ) : $post->post_type, 'view_url' => is_post_publicly_viewable( $post ) ? (string) get_permalink( $post ) : '', 'type_manage_url' => $type && $type->show_ui ? admin_url( 'edit.php?post_type=' . $post->post_type ) : '', 'type_add_url' => $type && current_user_can( $type->cap->create_posts ) ? admin_url( 'post-new.php?post_type=' . $post->post_type ) : '', 'type_archive_url' => get_post_type_archive_link( $post->post_type ) ?: '', 'modified' => mysql2date( 'j M Y', $post->post_modified ), 'thumb' => get_the_post_thumbnail_url( $post, 'medium' ) ?: '' );
 	}
 
 	/** Paginated site inventory with permission-filtered edges, including disconnected content. */
@@ -137,8 +163,10 @@ final class Etch_Hub_Connections {
 			$node = self::node( $id );
 			if ( ! $node ) { continue; }
 			$nodes[] = $node;
+			$outgoing = $node['public'] ? self::outgoing( $id ) : null;
 			foreach ( array( self::LINK => 'link', self::USES => 'uses' ) as $key => $kind ) {
-				foreach ( array_unique( array_map( 'intval', get_post_meta( $id, $key ) ) ) as $target ) {
+				$targets = $outgoing ? $outgoing[ 'link' === $kind ? 'to' : 'uses' ] : array_map( 'intval', get_post_meta( $id, $key ) );
+				foreach ( array_unique( $targets ) as $target ) {
 					if ( ! array_key_exists( $target, $visible ) ) {
 						$other = self::node( $target );
 						$visible[ $target ] = $other && in_array( $other['post_type'], $types, true ) && 'inherit' !== $other['status'];
@@ -203,13 +231,56 @@ final class Etch_Hub_Connections {
 
 	/** Resolve the same saved template Etch supplies to its builder. */
 	public static function template_for( WP_Post $post ): int {
-		if ( in_array( $post->post_type, array( 'wp_template', 'wp_template_part', 'wp_block', 'wp_navigation' ), true ) || ! trait_exists( '\Etch\Traits\DynamicData' ) ) { return 0; }
+		if ( in_array( $post->post_type, array( 'wp_template', 'wp_template_part', 'wp_block', 'wp_navigation', 'nav_menu_item' ), true ) || ! trait_exists( '\Etch\Traits\DynamicData' ) ) { return 0; }
 		$resolver = new class {
 			use \Etch\Traits\DynamicData;
 			public function resolve( WP_Post $post ): ?array { return $this->get_template_data( $post ); }
 		};
 		$resolved = $resolver->resolve( $post );
 		return (int) ( $resolved['id'] ?? 0 );
+	}
+
+	/** Follow only saved shared references; never render arbitrary blocks or queries. */
+	private static function outgoing( int $id ): array {
+		$to = array(); $uses = array(); $seen = array();
+		$body = self::template_for( get_post( $id ) );
+		$queue = array( $id );
+		if ( $body && $body !== $id && self::node( $body ) ) { $uses[] = $body; $queue[] = $body; }
+		for ( $cursor = 0; $cursor < count( $queue ) && $cursor < 100; $cursor++ ) {
+			$owner = (int) $queue[ $cursor ];
+			if ( isset( $seen[ $owner ] ) || ! self::node( $owner ) ) { continue; }
+			$seen[ $owner ] = true;
+			$to = array_merge( $to, array_map( 'intval', get_post_meta( $owner, self::LINK ) ) );
+			foreach ( get_post_meta( $owner, self::USES ) as $part ) {
+				$part = (int) $part;
+				if ( $part === $id || isset( $seen[ $part ] ) || ! self::node( $part ) ) { continue; }
+				$uses[] = $part;
+				if ( ! in_array( $part, $queue, true ) ) { $queue[] = $part; }
+			}
+		}
+		return array( 'to' => array_values( array_unique( array_diff( $to, array( $id ) ) ) ), 'uses' => array_values( array_unique( $uses ) ), 'truncated' => count( $queue ) > 100 );
+	}
+
+	/** Mirror inherited links in reverse, without traversing inaccessible shared resources. */
+	private static function incoming_links( int $id, bool &$truncated ): array {
+		$query = static fn( string $key, int $target ): array => get_posts( array( 'post_type' => self::types(), 'post_status' => array_diff( array_keys( get_post_stati() ), array( 'trash', 'auto-draft' ) ), 'posts_per_page' => 501, 'fields' => 'ids', 'meta_key' => $key, 'meta_value' => $target, 'no_found_rows' => true ) );
+		$queue = $query( self::LINK, $id ); $sources = array(); $visited = array(); $expanded = 0;
+		$shared = array( 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation' );
+		for ( $cursor = 0; $cursor < count( $queue ) && count( $sources ) <= 500; $cursor++ ) {
+			$source = (int) $queue[ $cursor ];
+			if ( $source === $id || isset( $visited[ $source ] ) ) { continue; }
+			$visited[ $source ] = true;
+			$node = self::node( $source );
+			if ( ! $node ) { continue; }
+			$sources[] = $source;
+			if ( ! in_array( $node['post_type'], $shared, true ) ) { continue; }
+			if ( ++$expanded > 100 ) { $truncated = true; continue; }
+			$users = $query( self::USES, $source );
+			if ( count( $users ) > 500 ) { $truncated = true; }
+			$queue = array_values( array_unique( array_merge( $queue, $users ) ) );
+		}
+		$truncated = $truncated || count( $sources ) > 500;
+		return array_slice( $sources, 0, 500 );
 	}
 
 	public static function connections( WP_REST_Request $request ) {
@@ -223,31 +294,20 @@ final class Etch_Hub_Connections {
 		$incoming = static function ( string $key ) use ( $id ): array {
 			return get_posts( array( 'post_type' => self::types(), 'post_status' => array_keys( get_post_stati() ), 'posts_per_page' => 501, 'fields' => 'ids', 'meta_key' => $key, 'meta_value' => $id, 'no_found_rows' => true ) );
 		};
-		$uses = array_map( 'intval', get_post_meta( $id, self::USES ) );
-		$to = array_map( 'intval', get_post_meta( $id, self::LINK ) );
-		$body = self::template_for( get_post( $id ) );
-		if ( $body && self::node( $body ) ) {
-			$uses[] = $body;
-			$to = array_merge( $to, array_map( 'intval', get_post_meta( $body, self::LINK ) ) );
-		}
-		// Follow shared references without rendering content; cycles cannot recurse forever.
-		$seen = array( $id => true );
-		$queue = array_merge( array( $id ), $uses );
-		for ( $cursor = 0; $cursor < count( $queue ) && $cursor < 100; $cursor++ ) {
-			$owner = (int) $queue[ $cursor ];
-			if ( $owner !== $id && isset( $seen[ $owner ] ) ) { continue; }
-			if ( $owner !== $id && ! self::node( $owner ) ) { continue; }
-			$seen[ $owner ] = true;
-			foreach ( get_post_meta( $owner, self::USES ) as $part ) {
-				$part = (int) $part;
-				if ( ! isset( $seen[ $part ] ) ) { $uses[] = $part; $queue[] = $part; }
-			}
-		}
-		$from = $incoming( self::LINK );
+		$outgoing = self::outgoing( $id );
+		$uses = $outgoing['uses']; $to = $outgoing['to'];
+		$incoming_truncated = false;
+		$from = self::incoming_links( $id, $incoming_truncated );
 		$used_by = $incoming( self::USES );
+		$parents = array(); $children = array();
+		$post = get_post( $id ); $type = get_post_type_object( $post->post_type );
+		if ( $type && $type->hierarchical ) {
+			if ( $post->post_parent && $post->post_parent !== $id && get_post_type( $post->post_parent ) === $post->post_type ) { $parents[] = (int) $post->post_parent; }
+			$children = get_posts( array( 'post_type' => $post->post_type, 'post_parent' => $id, 'post_status' => array_diff( array_keys( get_post_stati() ), array( 'trash', 'auto-draft' ) ), 'posts_per_page' => 501, 'fields' => 'ids', 'orderby' => array( 'title' => 'ASC', 'ID' => 'ASC' ), 'no_found_rows' => true ) );
+		}
 		$relationships_done = Etch_Hub_Relationships::batch();
 		$relationships = $relationships_done ? Etch_Hub_Relationships::for_post( get_post( $id ) ) : array();
-		return rest_ensure_response( array_merge( array( 'truncated' => count( $from ) > 500 || count( $used_by ) > 500 || count( $queue ) > 100, 'center' => $center, 'from' => $nodes( array_slice( $from, 0, 500 ) ), 'to' => $nodes( array_diff( $to, array( $id ) ) ), 'uses' => $nodes( array_diff( $uses, array( $id ) ) ), 'used_by' => $nodes( array_slice( $used_by, 0, 500 ) ), 'indexing' => ! $done, 'relationships_indexing' => ! $relationships_done ), $relationships ) );
+		return rest_ensure_response( array_merge( array( 'truncated' => $incoming_truncated || count( $used_by ) > 500 || count( $children ) > 500 || $outgoing['truncated'], 'center' => $center, 'parents' => $nodes( $parents ), 'children' => $nodes( array_slice( $children, 0, 500 ) ), 'from' => $nodes( array_slice( $from, 0, 500 ) ), 'to' => $nodes( array_diff( $to, array( $id ) ) ), 'uses' => $nodes( array_diff( $uses, array( $id ) ) ), 'used_by' => $nodes( array_slice( $used_by, 0, 500 ) ), 'indexing' => ! $done, 'relationships_indexing' => ! $relationships_done ), $relationships ) );
 	}
 }
 add_action( 'save_post', array( 'Etch_Hub_Connections', 'index' ), 30 );
@@ -287,3 +347,12 @@ foreach ( array( 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ) a
 }
 
 unset( $etch_hub_map_hook );
+
+// Menu destinations are stored in post meta after the initial post save.
+add_action( 'wp_update_nav_menu_item', static function ( $menu_id, $item_id ): void {
+	Etch_Hub_Connections::index( (int) $item_id );
+	delete_option( 'etch_hub_map_cursor_v1' );
+}, 20, 2 );
+add_action( 'updated_post_meta', static function ( $meta_id, $post_id, $key ): void {
+	if ( str_starts_with( $key, '_menu_item_' ) ) { delete_option( 'etch_hub_map_cursor_v1' ); }
+}, 20, 3 );

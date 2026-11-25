@@ -76,11 +76,13 @@
       const card=titleCard(data.center.title,'var(--delta-ok)',sprintf(__('%1$s · ID %2$d','etch-content-hub-sort'),subjectLabel,data.center.id));
       card.append(row(__('Content type','etch-content-hub-sort'),data.center.type),row(__('Path','etch-content-hub-sort'),data.center.path||__('No public URL','etch-content-hub-sort')),row(__('Status','etch-content-hub-sort'),config.statusLabels?.[data.center.status]||data.center.status));
       card.append(row(__('Linked from','etch-content-hub-sort'),sprintf(_n('%d item','%d items',data.from.length||0,'etch-content-hub-sort'),data.from.length)),row(__('Links to','etch-content-hub-sort'),sprintf(_n('%d item','%d items',data.to.length||0,'etch-content-hub-sort'),data.to.length)),row(__('Uses','etch-content-hub-sort'),sprintf(_n('%d shared part','%d shared parts',data.uses.length||0,'etch-content-hub-sort'),data.uses.length)));
+      if(data.parents?.length) card.append(row(__('Parent','etch-content-hub-sort'),data.parents[0].title));
+      if(data.children?.length) card.append(row(__('Children','etch-content-hub-sort'),String(data.children.length)));
       if(data.used_by?.length || data.center.kind==='shared') card.append(row(__('Used by','etch-content-hub-sort'),sprintf(_n('%d item','%d items',data.used_by?.length||0,'etch-content-hub-sort'),data.used_by?.length||0)));
       if(data.related_to?.length) card.append(row(outgoingRelationships,String(data.related_to.length)));
       if(data.related_from?.length) card.append(row(incomingRelationships,String(data.related_from.length)));
       details.append(card,actions(data.center,card),el('p','gd-hint',__('Click a card in the graph to see its details. Esc or the connections icon returns to the editor.','etch-content-hub-sort')));
-      if(data.truncated)details.append(el('p','gd-hint',__('This map is limited to 500 incoming connections and 100 nested shared resources. Some relationships are omitted.','etch-content-hub-sort')));
+      if(data.truncated)details.append(el('p','gd-hint',__('This map is limited to 500 incoming connections, 500 children, and 100 nested shared resources. Some relationships are omitted.','etch-content-hub-sort')));
       if(data.relationships_truncated)details.append(el('p','gd-hint',__('The map shows up to 500 related posts in each direction.','etch-content-hub-sort')));
       for(const node of root.querySelectorAll('.gnode')) node.setAttribute('aria-pressed','false');
     }
@@ -138,9 +140,11 @@
       };
       const center=el('div','gcol center');center.append(pageCard(data.center,'',true));
       const incoming=el('div','gcol from');incoming.append(group('from',__('Linked from','etch-content-hub-sort')));
+      if(data.parents?.length)incoming.append(group('parents',__('Parent','etch-content-hub-sort')));
       if(data.used_by?.length||data.center.kind==='shared')incoming.append(group('used_by',__('Used by','etch-content-hub-sort')));
       if(data.related_from?.length)incoming.append(group('related_from',incomingRelationships));
       const outgoing=el('div','gcol to');outgoing.append(group('to',__('Links to','etch-content-hub-sort')));
+      if(data.children?.length)outgoing.append(group('children',__('Children','etch-content-hub-sort')));
       if(data.related_to?.length)outgoing.append(group('related_to',outgoingRelationships));
       const uses=el('div','gcol uses row');uses.append(group('uses',__('Uses','etch-content-hub-sort')));
       center.append(uses);grid.append(incoming,center,outgoing);canvas.append(grid);stage.replaceChildren(canvas);
